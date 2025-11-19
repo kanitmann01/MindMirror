@@ -5,6 +5,7 @@ import { ConfigProvider, App } from 'antd';
 import '@ant-design/v5-patch-for-react-19';
 import theme from '@/theme/themeConfig';
 import { AuthProvider } from '@/context/AuthContext';
+import CookieConsent from '@/components/CookieConsent';
 import "./globals.css";
 
 const geistSans = Geist({
@@ -64,6 +65,7 @@ export default function RootLayout({
             <App>
               <AuthProvider>
                 {children}
+                <CookieConsent />
               </AuthProvider>
             </App>
           </ConfigProvider>
