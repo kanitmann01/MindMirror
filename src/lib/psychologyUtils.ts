@@ -89,7 +89,7 @@ export interface Question {
 }
 
 export const QUESTIONS: Question[] = [
-  // OCEAN (Big Five) - Keeping existing ones but adding category
+  // OCEAN (Big Five)
   { id: 'q1', text: 'I enjoy trying new and foreign foods.', category: 'ocean', trait: 'openness' },
   { id: 'q2', text: 'I like to have a detailed plan.', category: 'ocean', trait: 'conscientiousness' },
   { id: 'q3', text: 'I feel comfortable around people.', category: 'ocean', trait: 'extraversion' },
@@ -119,6 +119,9 @@ export const QUESTIONS: Question[] = [
   { id: 'mot5', text: 'I am always looking for the next big adventure.', category: 'motivation', trait: 'novelty_seeking' },
 ];
 
+/**
+ * Calculates the Big Five (OCEAN) scores from questionnaire answers.
+ */
 export const calculateOCEAN = (answers: Record<string, number>): OCEANScore => {
   const scores: OCEANScore = { openness: 0, conscientiousness: 0, extraversion: 0, agreeableness: 0, neuroticism: 0 };
   const counts: Record<keyof OCEANScore, number> = { openness: 0, conscientiousness: 0, extraversion: 0, agreeableness: 0, neuroticism: 0 };
@@ -140,15 +143,12 @@ export const calculateOCEAN = (answers: Record<string, number>): OCEANScore => {
   return scores;
 };
 
+/**
+ * Calculates MBTI-style dichotomy scores.
+ */
 export const calculateMBTI = (answers: Record<string, number>): MBTIResult => {
   // Default mid-points
   let E = 50, I = 50, N = 50, S = 50, T = 50, F = 50, J = 50, P = 50;
-  
-  // Heuristic: Map 1-5 scale. 1=Left option, 5=Right option.
-  // E/I: 5=E, 1=I (Wait, mbti1 options: 5=Many(E), 1=Few(I)) -> Correct.
-  // N/S: 5=Possible(N), 1=Actual(S) -> Correct.
-  // T/F: 1=Logic(T), 5=Values(F) -> Correct.
-  // J/P: 1=Settled(J), 5=Flexible(P) -> Correct.
 
   if (answers['mbti1']) {
     const val = answers['mbti1']; // 1(I) to 5(E)
@@ -175,6 +175,9 @@ export const calculateMBTI = (answers: Record<string, number>): MBTIResult => {
   };
 };
 
+/**
+ * Calculates cognitive style scores (Analytical vs Creative, Fast vs Deliberative).
+ */
 export const calculateCognitive = (answers: Record<string, number>): CognitiveStyle => {
   // 1=Analytical/Fast, 5=Creative/Deliberative
   let analytical = 50, creative = 50, fast = 50, deliberative = 50;
@@ -191,6 +194,9 @@ export const calculateCognitive = (answers: Record<string, number>): CognitiveSt
   return { analytical, creative, fast, deliberative };
 };
 
+/**
+ * Calculates core motivation scores.
+ */
 export const calculateMotivations = (answers: Record<string, number>): Motivations => {
   const scores: Motivations = { achievement: 0, curiosity: 0, sociality: 0, security: 0, novelty_seeking: 0 };
   
@@ -203,7 +209,9 @@ export const calculateMotivations = (answers: Record<string, number>): Motivatio
   return scores;
 };
 
-
+/**
+ * Determines the user's archetype based on OCEAN scores using heuristic thresholds.
+ */
 export const determineArchetype = (scores: OCEANScore): Archetype => {
   const { openness, conscientiousness, agreeableness, extraversion, neuroticism } = scores;
 
@@ -218,6 +226,9 @@ export const determineArchetype = (scores: OCEANScore): Archetype => {
   return ARCHETYPES.EXPLORER; // Bias towards growth
 };
 
+/**
+ * Analyzes a title and description string to infer psychological mood and intent tags.
+ */
 export const analyzeMediaContent = (title: string, description: string = ''): { mood: string[], intent: string[] } => {
   const text = (title + ' ' + description).toLowerCase();
   const mood = new Set<string>();
@@ -279,8 +290,8 @@ export const analyzeMediaContent = (title: string, description: string = ''): { 
 };
 
 /**
- * Update OCEAN scores based on new media items
- * This creates a "living profile" that evolves with consumption habits
+ * Update OCEAN scores based on new media items.
+ * This creates a "living profile" that evolves with consumption habits.
  */
 export const updateScoresWithMedia = (
   currentScores: OCEANScore,
@@ -305,7 +316,6 @@ export const updateScoresWithMedia = (
               updatedScores.conscientiousness = Math.min(100, updatedScores.conscientiousness + MEDIA_WEIGHT);
               break;
             case 'escapism':
-              // Escapism might indicate higher neuroticism (stress relief) or lower conscientiousness
               updatedScores.neuroticism = Math.min(100, updatedScores.neuroticism + MEDIA_WEIGHT * 0.5);
               break;
             case 'inspiration':
@@ -347,6 +357,9 @@ export const updateScoresWithMedia = (
   return updatedScores;
 };
 
+/**
+ * Updates OCEAN scores based on a new mood entry.
+ */
 export const updateScoresWithMood = (
     currentScores: OCEANScore,
     moodEntry: { mood: string, intensity: number }
