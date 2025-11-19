@@ -1,6 +1,6 @@
 # BrainMirror
 
-![BrainMirror Banner](public/og-image.png)
+![BrainMirror Banner](public/window.jpg)
 
 > **Visualize your mind's patterns, strengths, and blind spots.**
 
