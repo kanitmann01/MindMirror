@@ -1,17 +1,18 @@
 'use client';
 
 import React from 'react';
-import { Button, Card, Typography, App } from 'antd';
-import { ExclamationCircleOutlined, DownloadOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Button, Card, Typography, App, Divider } from 'antd';
+import { ExclamationCircleOutlined, DownloadOutlined, DeleteOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import { useAuth } from '@/context/AuthContext';
 import { getUserProfile, getMediaItems, deleteUserData } from '@/lib/firestoreUtils';
 import { useRouter } from 'next/navigation';
+import FeedbackForm from '@/components/FeedbackForm'; 
 
 const { Title, Paragraph } = Typography;
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
-  const { message, modal } = App.useApp(); // Use App hooks
+  const { message, modal } = App.useApp(); 
   const router = useRouter();
 
   const handleExport = async () => {
@@ -47,12 +48,8 @@ export default function SettingsPage() {
       async onOk() {
         if (!user) return;
         try {
-           // 1. Delete Firestore Data
            await deleteUserData(user.uid);
-           
-           // 2. Delete Auth Account
            await user.delete();
-           
            message.success('Account and data deleted.');
            router.push('/');
         } catch (error: any) {
@@ -68,14 +65,14 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-2xl mx-auto space-y-6"> 
       <Title level={2}>Settings</Title>
       
-      <Card title="Data Privacy" className="mb-6">
+      <Card title="Data Privacy & Control" className="shadow-sm">
         <Paragraph>
           You own your data. You can export it anytime or delete your account permanently.
         </Paragraph>
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-4">
            <Button icon={<DownloadOutlined />} onClick={handleExport}>
              Export My Data
            </Button>
@@ -83,11 +80,17 @@ export default function SettingsPage() {
              Delete Account & Data
            </Button>
         </div>
+        <Divider />
+        <Button type="link" icon={<SafetyCertificateOutlined />} onClick={() => router.push('/privacy')} style={{ paddingLeft: 0 }}>
+             View Privacy Policy & Ethical AI Statement
+        </Button>
       </Card>
 
-      <Card title="Session">
+      <Card title="Session" className="shadow-sm">
         <Button onClick={logout}>Logout</Button>
       </Card>
+
+      <FeedbackForm />
     </div>
   );
 }

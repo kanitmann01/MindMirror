@@ -1,12 +1,26 @@
 import { UserProfile, MediaItem } from './firestoreUtils';
 import { ARCHETYPES } from './psychologyUtils';
 
+// Define graph node colors for legend
+export const GRAPH_COLORS = {
+  USER: '#818CF8',
+  TRAIT: '#94A3B8',
+  INSIGHT: '#8B5CF6',
+  INSIGHT_SECONDARY: '#F472B6',
+  INTENT: '#FCD34D',
+  MEDIA_DEFAULT: '#A5B4FC',
+  MEDIA_YOUTUBE: '#FF8080',
+  MEDIA_SPOTIFY: '#86EFAC'
+};
+
 export interface GraphNode {
   id: string;
   name: string;
   val: number; 
   color?: string;
   group: string; 
+  // Add optional metadata for details panel
+  metadata?: any;
 }
 
 export interface GraphLink {
@@ -27,8 +41,9 @@ export const transformToGraphData = (profile: UserProfile, mediaItems: MediaItem
     id: centerId,
     name: profile.archetype.name,
     val: 6, 
-    color: profile.archetype.color || '#818CF8',
-    group: 'user'
+    color: profile.archetype.color || GRAPH_COLORS.USER,
+    group: 'user',
+    metadata: { description: profile.archetype.description }
   });
 
   // --- 2. Personality Traits (OCEAN) ---
@@ -40,8 +55,9 @@ export const transformToGraphData = (profile: UserProfile, mediaItems: MediaItem
         id: traitId,
         name: trait.charAt(0).toUpperCase() + trait.slice(1),
         val: 4, 
-        color: '#94A3B8', 
-        group: 'trait'
+        color: GRAPH_COLORS.TRAIT, 
+        group: 'trait',
+        metadata: { score }
       });
       links.push({ source: centerId, target: traitId, distance: 80 });
     });
@@ -54,8 +70,9 @@ export const transformToGraphData = (profile: UserProfile, mediaItems: MediaItem
       id: mbtiId,
       name: profile.mbti.type,
       val: 5,
-      color: '#8B5CF6', // Violet
-      group: 'insight'
+      color: GRAPH_COLORS.INSIGHT, // Violet
+      group: 'insight',
+      metadata: { breakdown: profile.mbti.breakdown }
     });
     links.push({ source: centerId, target: mbtiId, distance: 90 });
   }
@@ -69,8 +86,9 @@ export const transformToGraphData = (profile: UserProfile, mediaItems: MediaItem
            id: motId,
            name: mot.charAt(0).toUpperCase() + mot.slice(1),
            val: 4,
-           color: '#F472B6', // Pink
-           group: 'insight'
+           color: GRAPH_COLORS.INSIGHT_SECONDARY, // Pink
+           group: 'insight',
+           metadata: { score }
          });
          links.push({ source: centerId, target: motId, distance: 100 });
        }
@@ -91,7 +109,7 @@ export const transformToGraphData = (profile: UserProfile, mediaItems: MediaItem
       id: intentId,
       name: intent.charAt(0).toUpperCase() + intent.slice(1),
       val: 3, 
-      color: '#FCD34D', // Amber
+      color: GRAPH_COLORS.INTENT, // Amber
       group: 'intent'
     });
     
@@ -109,16 +127,17 @@ export const transformToGraphData = (profile: UserProfile, mediaItems: MediaItem
   mediaItems.forEach(item => {
     const mediaId = `media-${item.id || item.title}`; 
     
-    let mediaColor = '#A5B4FC'; 
-    if (item.category === 'youtube') mediaColor = '#FF8080'; 
-    if (item.category === 'spotify') mediaColor = '#86EFAC'; 
+    let mediaColor = GRAPH_COLORS.MEDIA_DEFAULT; 
+    if (item.category === 'youtube') mediaColor = GRAPH_COLORS.MEDIA_YOUTUBE; 
+    if (item.category === 'spotify') mediaColor = GRAPH_COLORS.MEDIA_SPOTIFY; 
 
     nodes.push({
       id: mediaId,
       name: item.title,
       val: 2, 
       color: mediaColor, 
-      group: 'media'
+      group: 'media',
+      metadata: item // Pass full item as metadata
     });
 
     // Link Media -> Intent (Primary connection)

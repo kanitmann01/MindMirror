@@ -73,6 +73,8 @@ const ImportContent = () => {
            rating: 4, 
            mood: mood, 
            intent: intent,
+           tags: [], // Initialize with empty tags as required by MediaItem interface
+           userId: user.uid, // Explicitly set userId as required by MediaItem interface
            createdAt: new Date().toISOString()
         };
         

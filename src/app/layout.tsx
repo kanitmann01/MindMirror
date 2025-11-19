@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AntdRegistry } from '@ant-design/nextjs-registry';
 import { ConfigProvider, App } from 'antd';
@@ -17,9 +17,36 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+    themeColor: '#6B7FD7',
+};
+
 export const metadata: Metadata = {
-  title: "BrainMirror",
-  description: "Visualize your mind's patterns, strengths, and blind spots",
+  title: "BrainMirror | Discover Your Psychological DNA",
+  description: "Visualize your mind's patterns, strengths, and blind spots through advanced psychological profiling and media analysis.",
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  },
+  openGraph: {
+      title: "BrainMirror | Discover Your Psychological DNA",
+      description: "Visualize your mind's patterns, strengths, and blind spots.",
+      url: 'https://brainmirror.app', // Placeholder
+      siteName: 'BrainMirror',
+      images: [
+          {
+              url: '/og-image.png', // Placeholder
+              width: 1200,
+              height: 630,
+          },
+      ],
+      locale: 'en_US',
+      type: 'website',
+  },
 };
 
 export default function RootLayout({

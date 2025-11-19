@@ -77,7 +77,7 @@ export default function LandingPage() {
                    <div className="text-4xl text-purple-500 mb-4 flex justify-center"><HeartOutlined /></div>
                    <Title level={3} className="text-center">Deep Insights</Title>
                    <Paragraph className="text-center">
-                     See beyond genres. Understand <em>why</em> you like what you like—comfort, challenge, or growth.
+                     See beyond genres. Understand <em>why</em> you like what you like - comfort, challenge, or growth.
                    </Paragraph>
                  </Card>
               </Col>

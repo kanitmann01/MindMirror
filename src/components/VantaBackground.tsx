@@ -30,6 +30,11 @@ const VantaBackground: React.FC<VantaBackgroundProps> = ({ children, className }
   useEffect(() => {
     if (threeLoaded && vantaLoaded && !vantaEffect && vantaRef.current && window.VANTA) {
       try {
+        // Vanta Birds depends on THREE.PerspectiveCamera, which might not be immediately available 
+        // if THREE is loaded but not fully initialized in the Vanta context. 
+        // Sometimes Vanta expects THREE to be on window.
+        // We can add a small safety check or delay.
+        
         const effect = window.VANTA.BIRDS({
           el: vantaRef.current,
           mouseControls: true,
@@ -49,7 +54,8 @@ const VantaBackground: React.FC<VantaBackgroundProps> = ({ children, className }
           separation: 20.00,
           alignment: 20.00,
           cohesion: 20.00,
-          quantity: 4.00
+          quantity: 4.00,
+          THREE: window.THREE // Explicitly pass THREE to Vanta
         });
         setVantaEffect(effect);
       } catch (error) {

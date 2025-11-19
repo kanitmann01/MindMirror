@@ -1,158 +1,221 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Steps, Button, Card, Radio, Typography, App, Spin, ConfigProvider } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Steps, Button, Card, Radio, Typography, App, Input, Checkbox, Form } from 'antd';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { QUESTIONS, calculateOCEAN, determineArchetype, calculateMBTI, calculateCognitive, calculateMotivations } from '@/lib/psychologyUtils';
-import { saveUserProfile } from '@/lib/firestoreUtils';
+import { saveUserProfile, UserProfile } from '@/lib/firestoreUtils';
+import { calculateOCEAN, determineArchetype, QUESTIONS, calculateMBTI, calculateCognitive, calculateMotivations } from '@/lib/psychologyUtils';
+import { CheckCircleOutlined, ArrowRightOutlined, RocketOutlined } from '@ant-design/icons';
 
-const { Title, Paragraph } = Typography;
+const { Title, Paragraph, Text } = Typography;
 
-// Create a separate component for the content to use the App hook
-const OnboardingContent = () => {
-  const { message } = App.useApp(); // Use the hook from App context
-  const { user, loading } = useAuth();
+const OnboardingPage = () => {
+  const { user } = useAuth();
   const router = useRouter();
+  const { message } = App.useApp();
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
-  const [submitting, setSubmitting] = useState(false);
+  const [goals, setGoals] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  React.useEffect(() => {
-    if (!loading && !user) {
+  // Redirect if not logged in
+  useEffect(() => {
+    if (user === null) {
       router.push('/');
     }
-  }, [user, loading, router]);
-
-  if (loading || !user) return <div className="flex justify-center items-center h-screen"><Spin size="large" /></div>;
+  }, [user, router]);
 
   const handleAnswer = (questionId: string, value: number) => {
-    setAnswers({ ...answers, [questionId]: value });
+    setAnswers(prev => ({ ...prev, [questionId]: value }));
   };
 
-  const handleNext = () => {
-    setCurrentStep(currentStep + 1);
-  };
-
-  const handlePrev = () => {
-    setCurrentStep(currentStep - 1);
-  };
-
-  const handleFinish = async () => {
-    setSubmitting(true);
+  const finishOnboarding = async () => {
+    if (!user) return;
+    setLoading(true);
+    
     try {
+      // 1. Calculate Scores
       const oceanScore = calculateOCEAN(answers);
       const archetype = determineArchetype(oceanScore);
       const mbti = calculateMBTI(answers);
       const cognitiveStyle = calculateCognitive(answers);
       const motivations = calculateMotivations(answers);
 
-      await saveUserProfile(user.uid, {
-        uid: user.uid,
-        displayName: user.displayName,
-        email: user.email,
-        photoURL: user.photoURL,
+      // 2. Save to Firestore
+      const profileData: Partial<UserProfile> = {
         oceanScore,
         archetype,
         mbti,
         cognitiveStyle,
         motivations,
-        onboardingCompleted: true,
-        createdAt: new Date().toISOString(),
-      });
+        goals, // Save goals
+      };
 
-      message.success('Profile created! Welcome, ' + archetype.name);
+      await saveUserProfile(user.uid, profileData);
+      message.success('Profile created successfully!');
+      
+      // Small delay for UX
       setTimeout(() => {
-        router.push('/dashboard');
-      }, 500);
-    } catch (error: any) {
+         router.push('/dashboard');
+      }, 1000);
+
+    } catch (error) {
       console.error(error);
-      if (error.code === 'permission-denied') {
-          message.error('Permission denied. Please check your Firestore Rules.');
-      } else {
-          message.error('Failed to save profile: ' + error.message);
-      }
-    } finally {
-      setSubmitting(false);
+      message.error('Failed to save profile. Please try again.');
+      setLoading(false);
     }
   };
 
-  const questionsPerPage = 5;
-  const totalSteps = Math.ceil(QUESTIONS.length / questionsPerPage);
-  const currentQuestions = QUESTIONS.slice(currentStep * questionsPerPage, (currentStep + 1) * questionsPerPage);
-  const isStepComplete = currentQuestions.every(q => answers[q.id] !== undefined);
+  const steps = [
+    {
+        title: 'Goals',
+        content: (
+            <div className="py-4">
+                <Title level={4}>What brings you to BrainMirror?</Title>
+                <Paragraph>Select your primary goals to help us personalize your experience.</Paragraph>
+                <Checkbox.Group 
+                    className="flex flex-col gap-3 w-full" 
+                    onChange={(checkedValues) => setGoals(checkedValues as string[])}
+                    value={goals}
+                >
+                    <div className="p-3 border rounded hover:bg-blue-50 transition-colors">
+                        <Checkbox value="self-discovery">Understanding my personality & archetype</Checkbox>
+                    </div>
+                    <div className="p-3 border rounded hover:bg-blue-50 transition-colors">
+                        <Checkbox value="reduce-anxiety">Managing stress & anxiety</Checkbox>
+                    </div>
+                    <div className="p-3 border rounded hover:bg-blue-50 transition-colors">
+                        <Checkbox value="better-habits">Building better media habits</Checkbox>
+                    </div>
+                    <div className="p-3 border rounded hover:bg-blue-50 transition-colors">
+                        <Checkbox value="new-hobbies">Discovering new interests & hobbies</Checkbox>
+                    </div>
+                    <div className="p-3 border rounded hover:bg-blue-50 transition-colors">
+                        <Checkbox value="productivity">Improving focus & productivity</Checkbox>
+                    </div>
+                </Checkbox.Group>
+            </div>
+        )
+    },
+    {
+      title: 'Personality',
+      content: (
+        <div className="space-y-6">
+           <Title level={4}>Let's understand your core traits (OCEAN).</Title>
+           <Paragraph type="secondary">Answer honestly. There are no right or wrong answers.</Paragraph>
+           {QUESTIONS.filter(q => q.category === 'ocean').map((q) => (
+             <div key={q.id} className="bg-gray-50 p-4 rounded-lg">
+               <Text strong className="block mb-3">{q.text}</Text>
+               <Radio.Group 
+                 onChange={e => handleAnswer(q.id, e.target.value)} 
+                 value={answers[q.id]}
+                 style={{ display: 'flex', width: '100%', justifyContent: 'space-between' }}
+               >
+                 <div className="flex flex-col items-center flex-1"><Radio value={1} /><span className="text-xs text-gray-400 mt-1">Disagree</span></div>
+                 <div className="flex flex-col items-center flex-1"><Radio value={2} /></div>
+                 <div className="flex flex-col items-center flex-1"><Radio value={3} /><span className="text-xs text-gray-400 mt-1">Neutral</span></div>
+                 <div className="flex flex-col items-center flex-1"><Radio value={4} /></div>
+                 <div className="flex flex-col items-center flex-1"><Radio value={5} /><span className="text-xs text-gray-400 mt-1">Agree</span></div>
+               </Radio.Group>
+             </div>
+           ))}
+        </div>
+      ),
+    },
+    {
+      title: 'Cognition',
+      content: (
+        <div className="space-y-6">
+           <Title level={4}>How do you process the world?</Title>
+           {QUESTIONS.filter(q => q.category === 'mbti' || q.category === 'cognitive').map((q) => (
+             <div key={q.id} className="bg-gray-50 p-4 rounded-lg">
+               <Text strong className="block mb-3">{q.text}</Text>
+               <Radio.Group 
+                 onChange={e => handleAnswer(q.id, e.target.value)} 
+                 value={answers[q.id]}
+                 className="w-full flex flex-col gap-2"
+               >
+                  {q.options ? (
+                      q.options.map(opt => (
+                          <Radio key={opt.value} value={opt.value} className="p-2 border rounded bg-white hover:border-blue-400">
+                              {opt.label}
+                          </Radio>
+                      ))
+                  ) : (
+                       <div className="flex justify-between mt-2">
+                           <Radio value={1}>Strongly Disagree</Radio>
+                           <Radio value={5}>Strongly Agree</Radio>
+                       </div>
+                  )}
+               </Radio.Group>
+             </div>
+           ))}
+        </div>
+      )
+    },
+    {
+        title: 'Motivation',
+        content: (
+            <div className="space-y-6">
+            <Title level={4}>What drives you?</Title>
+            {QUESTIONS.filter(q => q.category === 'motivation').map((q) => (
+                <div key={q.id} className="bg-gray-50 p-4 rounded-lg">
+                <Text strong className="block mb-3">{q.text}</Text>
+                <Radio.Group 
+                    onChange={e => handleAnswer(q.id, e.target.value)} 
+                    value={answers[q.id]}
+                    style={{ display: 'flex', width: '100%', justifyContent: 'space-between' }}
+                >
+                    <div className="flex flex-col items-center flex-1"><Radio value={1} /><span className="text-xs text-gray-400 mt-1">Not me</span></div>
+                    <div className="flex flex-col items-center flex-1"><Radio value={2} /></div>
+                    <div className="flex flex-col items-center flex-1"><Radio value={3} /><span className="text-xs text-gray-400 mt-1">Neutral</span></div>
+                    <div className="flex flex-col items-center flex-1"><Radio value={4} /></div>
+                    <div className="flex flex-col items-center flex-1"><Radio value={5} /><span className="text-xs text-gray-400 mt-1">Totally me</span></div>
+                </Radio.Group>
+                </div>
+            ))}
+            </div>
+        )
+    }
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
-      <div className="max-w-2xl mx-auto">
-        <Card className="shadow-md">
-          <Title level={2} className="text-center mb-8">Discover Your Mind</Title>
-          <Steps current={currentStep} className="mb-8">
-             {Array.from({ length: totalSteps }).map((_, i) => <Steps.Step key={i} />)}
-          </Steps>
+    <div className="max-w-3xl mx-auto py-10 px-4">
+      <Card className="shadow-xl">
+        <div className="mb-8">
+            <Title level={2} className="text-center">Build Your BrainMirror</Title>
+            <Paragraph className="text-center text-gray-500">
+                Help us construct your initial psychological profile.
+            </Paragraph>
+        </div>
 
-          <div className="space-y-8">
-            {currentQuestions.map((q) => {
-                const leftLabel = q.options ? q.options[0].label : 'Strongly Disagree';
-                const rightLabel = q.options ? q.options[1].label : 'Strongly Agree';
+        <Steps current={currentStep} items={steps.map(s => ({ title: s.title }))} className="mb-8" />
 
-                return (
-                  <div key={q.id} className="bg-white p-6 rounded-lg border border-gray-200">
-                    <Paragraph className="text-lg font-medium mb-6 text-center">{q.text}</Paragraph>
-                    <div className="flex flex-col gap-3">
-                      <div className="flex justify-between w-full px-4 text-sm font-medium text-gray-500">
-                        <span className="w-1/3 text-left leading-tight">{leftLabel}</span>
-                        <span className="w-1/3 text-right leading-tight">{rightLabel}</span>
-                      </div>
-                      <div className="bg-slate-50 rounded-full px-2 py-3 w-full">
-                        <ConfigProvider theme={{ components: { Radio: { buttonSolidCheckedBg: 'transparent' } } }}>
-                            <Radio.Group
-                              onChange={(e) => handleAnswer(q.id, e.target.value)}
-                              value={answers[q.id]}
-                              className="!flex !w-full !justify-between"
-                              style={{ display: 'flex', width: '100%', justifyContent: 'space-between' }}
-                            >
-                               <div className="flex-1 flex justify-center"><Radio value={1} className="scale-125 !mr-0" /></div>
-                               <div className="flex-1 flex justify-center"><Radio value={2} className="scale-110 !mr-0" /></div>
-                               <div className="flex-1 flex justify-center"><Radio value={3} className="!mr-0" /></div>
-                               <div className="flex-1 flex justify-center"><Radio value={4} className="scale-110 !mr-0" /></div>
-                               <div className="flex-1 flex justify-center"><Radio value={5} className="scale-125 !mr-0" /></div>
-                            </Radio.Group>
-                        </ConfigProvider>
-                      </div>
-                      <div className="flex justify-between w-full px-6 text-xs text-gray-400">
-                        {[1, 2, 3, 4, 5].map(n => <span key={n} className="w-4 text-center">{n}</span>)}
-                      </div>
-                    </div>
-                  </div>
-                );
-            })}
-          </div>
+        <div className="min-h-[300px]">
+          {steps[currentStep].content}
+        </div>
 
-          <div className="flex justify-between mt-8">
-            {currentStep > 0 && (
-              <Button onClick={handlePrev} size="large">Previous</Button>
-            )}
-            {currentStep < totalSteps - 1 ? (
-              <Button type="primary" onClick={handleNext} disabled={!isStepComplete} size="large">
-                Next Question Set
-              </Button>
-            ) : (
-              <Button type="primary" onClick={handleFinish} loading={submitting} disabled={!isStepComplete} size="large">
-                Reveal My Archetype
-              </Button>
-            )}
-          </div>
-        </Card>
-      </div>
+        <div className="flex justify-between mt-8 pt-4 border-t">
+          {currentStep > 0 && (
+            <Button onClick={() => setCurrentStep(currentStep - 1)}>
+              Previous
+            </Button>
+          )}
+          {currentStep < steps.length - 1 && (
+            <Button type="primary" onClick={() => setCurrentStep(currentStep + 1)} icon={<ArrowRightOutlined />}>
+              Next
+            </Button>
+          )}
+          {currentStep === steps.length - 1 && (
+            <Button type="primary" onClick={finishOnboarding} loading={loading} icon={<CheckCircleOutlined />} size="large">
+              Reveal My Profile
+            </Button>
+          )}
+        </div>
+      </Card>
     </div>
   );
 };
 
-export default function OnboardingPage() {
-  return (
-    <App>
-      <OnboardingContent />
-    </App>
-  );
-}
+export default OnboardingPage;

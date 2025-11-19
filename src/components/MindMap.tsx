@@ -2,10 +2,11 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { GraphNode, GraphLink } from '@/lib/graphUtils';
+import { GraphNode, GraphLink, GRAPH_COLORS } from '@/lib/graphUtils';
 import * as THREE from 'three';
 import SpriteText from 'three-spritetext';
-import { Switch, Typography } from 'antd';
+import { Switch, Drawer, Typography, Tag, Space, Badge } from 'antd';
+import InfoTooltip from './InfoTooltip';
 
 // Dynamically import ForceGraph3D (No SSR)
 const ForceGraph3D = dynamic(() => import('react-force-graph-3d'), { ssr: false });
@@ -19,13 +20,15 @@ const MindMap = ({ data }: MindMapProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ width: 0, height: 500 });
   const [showLabels, setShowLabels] = useState(true); // Default on
+  
+  // Drawer State
+  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
-    console.log('MindMap mounted or updated. Data:', data);
     // Wait a bit for the container to be laid out
     const timer = setTimeout(() => {
         if (containerRef.current) {
-            console.log('Resizing MindMap:', containerRef.current.offsetWidth, containerRef.current.offsetHeight);
             setDims({
               width: containerRef.current.offsetWidth,
               height: containerRef.current.offsetHeight
@@ -53,18 +56,6 @@ const MindMap = ({ data }: MindMapProps) => {
   // Force graph refresh when showLabels changes
   useEffect(() => {
     if (fgRef.current) {
-      // Re-trigger the node object creation by forcing an update
-      // There isn't a direct "re-render nodes" method, but we can achieve this
-      // by tricking it into thinking the data "might" have changed or just by
-      // explicitly re-setting the nodeThreeObject function if we were passing it dynamically.
-      // However, react-force-graph watches props. passing a new function reference might help?
-      // Actually, just calling refresh() is often enough for canvas, but for ThreeJS objects,
-      // we need to tell it to reconstruct the scene objects.
-      
-      // The library is smart. If we pass the same data object, it might not re-render nodes.
-      // But we are conditionally rendering inside `nodeThreeObject`.
-      // We need to make sure `nodeThreeObject` is re-evaluated.
-      
       fgRef.current.refresh(); 
     }
   }, [showLabels]);
@@ -79,6 +70,10 @@ const MindMap = ({ data }: MindMapProps) => {
       node, 
       2000
     );
+    
+    // Open Details Panel
+    setSelectedNode(node as GraphNode);
+    setDrawerOpen(true);
   }, [fgRef]);
 
   // Define the node object function. We wrap it in useCallback to ensure referential stability
@@ -115,21 +110,53 @@ const MindMap = ({ data }: MindMapProps) => {
   }, [showLabels]); // Dependency on showLabels ensures the function changes
 
   return (
-    <div className="relative">
-       {/* Toggle Control */}
-      <div className="absolute top-4 left-4 z-10 bg-black/50 p-2 rounded backdrop-blur-sm border border-slate-700">
-         <div className="flex items-center gap-2">
-           <Switch 
-             size="small" 
-             checked={showLabels} 
-             onChange={setShowLabels} 
-             className="bg-slate-600" 
-           />
-           <span style={{ color: 'white', fontSize: '12px', fontWeight: 500 }}>Show Names</span>
+    <div className="relative w-full">
+       {/* Controls Overlay */}
+      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 pointer-events-none">
+         {/* Toggle Label */}
+         <div className="bg-black/50 p-2 rounded backdrop-blur-sm border border-slate-700 pointer-events-auto w-fit">
+             <div className="flex items-center gap-2">
+               <Switch 
+                 size="small" 
+                 checked={showLabels} 
+                 onChange={setShowLabels} 
+                 className="bg-slate-600" 
+               />
+               <span style={{ color: 'white', fontSize: '12px', fontWeight: 500 }}>Show Names</span>
+             </div>
+         </div>
+
+         {/* Legend */}
+         <div className="bg-black/50 p-3 rounded backdrop-blur-sm border border-slate-700 pointer-events-auto">
+            <Typography.Text strong style={{ color: 'white', fontSize: '12px', display: 'block', marginBottom: 8 }}>
+               Legend <InfoTooltip text="Color coding for graph nodes" />
+            </Typography.Text>
+            <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                    <Badge color={GRAPH_COLORS.USER} /> <span className="text-xs text-white">You</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Badge color={GRAPH_COLORS.TRAIT} /> <span className="text-xs text-white">Traits (OCEAN)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Badge color={GRAPH_COLORS.INSIGHT} /> <span className="text-xs text-white">Core Insights</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Badge color={GRAPH_COLORS.INTENT} /> <span className="text-xs text-white">Psych Intents</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Badge color={GRAPH_COLORS.MEDIA_DEFAULT} /> <span className="text-xs text-white">Media</span>
+                </div>
+            </div>
          </div>
       </div>
 
-      <div ref={containerRef} style={{ height: 500, width: '100%' }} className="rounded-lg border border-slate-800 overflow-hidden shadow-2xl bg-black">
+      {/* 3D Graph Container */}
+      <div 
+        ref={containerRef} 
+        className="rounded-lg border border-slate-800 overflow-hidden shadow-2xl bg-black w-full"
+        style={{ height: '500px', maxHeight: '60vh' }} // Responsive height limit
+      >
         {dims.width > 0 && (
           <ForceGraph3D
             ref={fgRef}
@@ -161,6 +188,63 @@ const MindMap = ({ data }: MindMapProps) => {
           />
         )}
       </div>
+
+      {/* Node Details Drawer */}
+      <Drawer
+        title={selectedNode?.name}
+        placement="right"
+        onClose={() => setDrawerOpen(false)}
+        open={drawerOpen}
+        mask={false} // Non-blocking
+        width={320}
+      >
+        {selectedNode && (
+            <div className="space-y-4">
+                <div>
+                    <Tag color={selectedNode.color}>{selectedNode.group.toUpperCase()}</Tag>
+                </div>
+                
+                {selectedNode.group === 'media' && selectedNode.metadata && (
+                    <div className="flex flex-col gap-2">
+                        <Typography.Text type="secondary">Category: <span className="capitalize text-black">{selectedNode.metadata.category}</span></Typography.Text>
+                        {selectedNode.metadata.rating && <Typography.Text>Rating: {selectedNode.metadata.rating}/5</Typography.Text>}
+                        
+                        {selectedNode.metadata.intent && (
+                            <div>
+                                <Typography.Text strong>Psychological Intent:</Typography.Text>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                    {selectedNode.metadata.intent.map((i: string) => <Tag key={i}>{i}</Tag>)}
+                                </div>
+                            </div>
+                        )}
+                        {selectedNode.metadata.mood && (
+                            <div className="mt-2">
+                                <Typography.Text strong>Mood Vibe:</Typography.Text>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                    {selectedNode.metadata.mood.map((m: string) => <Tag key={m} color="blue">{m}</Tag>)}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {selectedNode.group === 'user' && selectedNode.metadata && (
+                    <div>
+                         <Typography.Paragraph>{selectedNode.metadata.description}</Typography.Paragraph>
+                    </div>
+                )}
+                 
+                {selectedNode.group === 'trait' && selectedNode.metadata && (
+                    <div>
+                        <Typography.Text>Current Score: {selectedNode.metadata.score}</Typography.Text>
+                        <Typography.Paragraph type="secondary" className="text-xs mt-2">
+                            This trait score is dynamically influenced by your media consumption and mood logs.
+                        </Typography.Paragraph>
+                    </div>
+                )}
+            </div>
+        )}
+      </Drawer>
     </div>
   );
 };

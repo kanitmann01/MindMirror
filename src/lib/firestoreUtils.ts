@@ -1,142 +1,257 @@
-import { doc, setDoc, getDoc, collection, addDoc, getDocs, query, orderBy, limit, deleteDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, addDoc, getDocs, query, orderBy, limit, deleteDoc, where, runTransaction } from 'firebase/firestore';
 import { db } from './firebase';
-import { OCEANScore, Archetype, MBTIResult, CognitiveStyle, Motivations } from './psychologyUtils';
+import { OCEANScore, MBTIResult, CognitiveStyle, Motivations, Archetype } from './psychologyUtils';
 
-/**
- * Represents the comprehensive user profile stored in Firestore.
- */
+export interface PublicProfileConfig {
+    username: string;
+    isPublic: boolean;
+    bio: string;
+    visibleSections: {
+        ocean: boolean;
+        mbti: boolean;
+        archetype: boolean;
+        mindmap: boolean;
+        mood: boolean;
+    }
+}
+
 export interface UserProfile {
   uid: string;
-  displayName: string | null;
-  email: string | null;
-  photoURL: string | null;
+  email: string;
+  displayName: string;
+  photoURL: string;
   oceanScore?: OCEANScore;
+  archetype?: Archetype;
   mbti?: MBTIResult;
   cognitiveStyle?: CognitiveStyle;
   motivations?: Motivations;
-  archetype?: Archetype;
-  onboardingCompleted: boolean;
   createdAt: string;
-  youtubeImported?: boolean;
+  youtubeImported?: boolean; // Flag to track if YouTube data has been imported
+  goals?: string[]; // New: Array of user goals
+  publicProfile?: PublicProfileConfig; // New: Public profile settings
 }
 
-/**
- * Represents a single media item (book, movie, etc.) added by the user.
- */
 export interface MediaItem {
   id?: string;
+  userId: string;
   title: string;
-  category: 'book' | 'anime' | 'movie' | 'game' | 'youtube' | 'spotify';
+  category: string; // 'book', 'anime', 'movie', 'game', 'youtube', 'spotify'
   rating: number;
-  mood: string[];
-  intent: string[];
+  tags: string[]; // User manually entered tags
+  mood?: string[]; // Inferred or selected mood tags (e.g., 'uplifting', 'dark')
+  intent?: string[]; // Inferred psychological intent (e.g., 'escapism', 'learning')
   createdAt: string;
 }
 
-/**
- * Represents a daily mood entry.
- */
 export interface MoodEntry {
   id?: string;
-  mood: string; // e.g. "Happy", "Anxious"
-  intensity: number; // 1-10
-  note: string;
+  mood: string;
+  intensity: number;
+  note?: string;
+  createdAt?: string;
+}
+
+export interface Feedback {
+  userId: string;
+  rating: number; // 1-5
+  message: string;
+  type: string; // 'bug', 'feature', 'general'
   createdAt: string;
 }
 
 /**
- * Saves or updates a user's profile data in Firestore.
- * @param userId - The Firebase Auth UID
- * @param data - Partial profile data to merge
+ * Saves or updates a user profile in Firestore.
  */
-export const saveUserProfile = async (userId: string, data: Partial<UserProfile>) => {
-  const userRef = doc(db, 'users', userId);
-  await setDoc(userRef, data, { merge: true });
+export const saveUserProfile = async (uid: string, data: Partial<UserProfile>) => {
+  try {
+    const userRef = doc(db, 'users', uid);
+    await setDoc(userRef, data, { merge: true });
+  } catch (error) {
+    console.error("Error saving user profile:", error);
+    throw error;
+  }
 };
 
 /**
- * Retrieves the user profile from Firestore.
- * @param userId - The Firebase Auth UID
- * @returns The UserProfile or null if not found
+ * Retrieves a user profile from Firestore.
  */
-export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
-  const userRef = doc(db, 'users', userId);
-  const snap = await getDoc(userRef);
-  if (snap.exists()) {
-    return snap.data() as UserProfile;
+export const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
+  try {
+    const userRef = doc(db, 'users', uid);
+    const docSnap = await getDoc(userRef);
+    if (docSnap.exists()) {
+      return docSnap.data() as UserProfile;
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error("Error getting user profile:", error);
+    throw error;
   }
-  return null;
 };
 
 /**
  * Adds a new media item to the user's 'media' subcollection.
- * @param userId - The Firebase Auth UID
- * @param mediaItem - The media item data (excluding ID)
  */
-export const addMediaItem = async (userId: string, mediaItem: Omit<MediaItem, 'id'>) => {
-  const mediaRef = collection(db, 'users', userId, 'media');
-  await addDoc(mediaRef, mediaItem);
+export const addMediaItem = async (uid: string, item: MediaItem) => {
+  try {
+    const mediaRef = collection(db, 'users', uid, 'media');
+    await addDoc(mediaRef, item);
+  } catch (error) {
+    console.error("Error adding media item:", error);
+    throw error;
+  }
 };
 
 /**
- * Fetches all media items for a user, ordered by creation date (descending).
- * @param userId - The Firebase Auth UID
- * @returns Array of MediaItem
+ * Retrieves all media items for a user.
  */
-export const getMediaItems = async (userId: string): Promise<MediaItem[]> => {
-  const mediaRef = collection(db, 'users', userId, 'media');
-  const q = query(mediaRef, orderBy('createdAt', 'desc'));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as MediaItem));
+export const getMediaItems = async (uid: string): Promise<MediaItem[]> => {
+  try {
+    const mediaRef = collection(db, 'users', uid, 'media');
+    const q = query(mediaRef, orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MediaItem));
+  } catch (error) {
+    console.error("Error getting media items:", error);
+    throw error;
+  }
 };
 
 /**
- * Adds a mood entry to the user's 'moods' subcollection.
- * @param userId - The Firebase Auth UID
- * @param moodEntry - The mood data
+ * Adds a new mood entry to the user's 'moods' subcollection.
  */
-export const addMoodEntry = async (userId: string, moodEntry: Omit<MoodEntry, 'id'>) => {
-  const moodRef = collection(db, 'users', userId, 'moods');
-  await addDoc(moodRef, moodEntry);
+export const addMoodEntry = async (uid: string, entry: MoodEntry) => {
+  try {
+    const moodsRef = collection(db, 'users', uid, 'moods');
+    await addDoc(moodsRef, entry);
+  } catch (error) {
+    console.error("Error adding mood entry:", error);
+    throw error;
+  }
 };
 
 /**
- * Fetches the last 14 mood entries for a user.
- * @param userId - The Firebase Auth UID
- * @returns Array of MoodEntry
+ * Retrieves recent mood entries for a user.
  */
-export const getMoodEntries = async (userId: string): Promise<MoodEntry[]> => {
-  const moodRef = collection(db, 'users', userId, 'moods');
-  const q = query(moodRef, orderBy('createdAt', 'desc'), limit(14)); // Last 2 weeks
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as MoodEntry));
+export const getMoodEntries = async (uid: string, limitCount: number = 10): Promise<MoodEntry[]> => {
+  try {
+    const moodsRef = collection(db, 'users', uid, 'moods');
+    const q = query(moodsRef, orderBy('createdAt', 'desc'), limit(limitCount));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MoodEntry));
+  } catch (error) {
+    console.error("Error getting mood entries:", error);
+    throw error;
+  }
 };
 
 /**
- * Permanently deletes all user data (profile, media, moods).
- * This is a destructive action and should be confirmed by the user.
- * @param userId - The Firebase Auth UID
+ * Deletes all user data (profile and subcollections).
  */
-export const deleteUserData = async (userId: string) => {
-  const userRef = doc(db, 'users', userId);
+export const deleteUserData = async (uid: string) => {
+  try {
+    // 1. Delete Media Subcollection
+    const mediaRef = collection(db, 'users', uid, 'media');
+    const mediaSnap = await getDocs(mediaRef);
+    const mediaDeletePromises = mediaSnap.docs.map(doc => deleteDoc(doc.ref));
+    await Promise.all(mediaDeletePromises);
 
-  // Helper to delete a subcollection
-  const deleteCollection = async (collectionName: string) => {
-    const colRef = collection(db, 'users', userId, collectionName);
-    const snapshot = await getDocs(colRef);
-    if (!snapshot.empty) {
-        const batch = writeBatch(db);
-        snapshot.docs.forEach((doc) => {
-        batch.delete(doc.ref);
+    // 2. Delete Moods Subcollection
+    const moodsRef = collection(db, 'users', uid, 'moods');
+    const moodsSnap = await getDocs(moodsRef);
+    const moodsDeletePromises = moodsSnap.docs.map(doc => deleteDoc(doc.ref));
+    await Promise.all(moodsDeletePromises);
+
+    // 3. Delete User Document
+    const userRef = doc(db, 'users', uid);
+    await deleteDoc(userRef);
+    
+  } catch (error) {
+    console.error("Error deleting user data:", error);
+    throw error;
+  }
+};
+
+/**
+ * Saves user feedback to a top-level 'feedback' collection.
+ */
+export const saveFeedback = async (feedback: Feedback) => {
+  try {
+      await addDoc(collection(db, 'feedback'), feedback);
+  } catch (error) {
+      console.error("Error saving feedback:", error);
+      throw error;
+  }
+};
+
+/**
+ * Checks if a username is already taken.
+ */
+export const isUsernameTaken = async (username: string): Promise<boolean> => {
+    const q = query(collection(db, 'usernames'), where('username', '==', username.toLowerCase()));
+    const snapshot = await getDocs(q);
+    return !snapshot.empty;
+};
+
+/**
+ * Claims a username for a user.
+ * Uses a transaction to ensure uniqueness.
+ */
+export const claimUsername = async (uid: string, username: string): Promise<boolean> => {
+    const usernameRef = doc(db, 'usernames', username.toLowerCase());
+    
+    try {
+        await runTransaction(db, async (transaction) => {
+            const docSnap = await transaction.get(usernameRef);
+            if (docSnap.exists()) {
+                if (docSnap.data().uid === uid) {
+                    // Already owned by this user, all good
+                    return; 
+                }
+                throw new Error("Username taken");
+            }
+            transaction.set(usernameRef, { uid, username: username.toLowerCase(), claimedAt: new Date().toISOString() });
         });
-        await batch.commit();
+        return true;
+    } catch (e) {
+        console.error("Username claim failed:", e);
+        return false;
     }
-  };
+};
 
-  // Delete subcollections first
-  await deleteCollection('media');
-  await deleteCollection('moods');
+/**
+ * Fetches a public profile by username.
+ */
+export const getPublicProfile = async (username: string): Promise<{ profile: UserProfile, media: MediaItem[], moods: MoodEntry[] } | null> => {
+    try {
+        // 1. Resolve username to UID
+        const usernameRef = doc(db, 'usernames', username.toLowerCase());
+        const usernameSnap = await getDoc(usernameRef);
+        
+        if (!usernameSnap.exists()) return null;
+        const uid = usernameSnap.data().uid;
 
-  // Delete user profile document
-  await deleteDoc(userRef);
+        // 2. Fetch User Profile
+        const profile = await getUserProfile(uid);
+        if (!profile || !profile.publicProfile || !profile.publicProfile.isPublic) return null;
+
+        // 3. Fetch Data based on visibility settings
+        let media: MediaItem[] = [];
+        let moods: MoodEntry[] = [];
+
+        if (profile.publicProfile.visibleSections.mindmap) {
+             media = await getMediaItems(uid); // Need media for graph
+        }
+        
+        if (profile.publicProfile.visibleSections.mood) {
+             moods = await getMoodEntries(uid, 5); // Recent moods
+        }
+
+        return { profile, media, moods };
+
+    } catch (error) {
+        console.error("Error fetching public profile:", error);
+        return null;
+    }
 };
