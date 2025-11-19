@@ -19,9 +19,17 @@ export default function PublicProfileSettings() {
   const [isPublic, setIsPublic] = useState(false);
   const [username, setUsername] = useState('');
   const [bio, setBio] = useState('');
+  const [avatar, setAvatar] = useState('default');
   const [visibleSections, setVisibleSections] = useState({
       ocean: true, mbti: true, archetype: true, mindmap: true, mood: false
   });
+
+  const AVATAR_OPTIONS = [
+    { id: 'default', url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix' },
+    { id: 'robot', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Brain' },
+    { id: 'mind', url: 'https://api.dicebear.com/7.x/identicon/svg?seed=Mind' },
+    { id: 'abstract', url: 'https://api.dicebear.com/7.x/shapes/svg?seed=Mirror' },
+  ];
 
   // Username Validation State
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'success' | 'error'>('idle');
@@ -36,6 +44,7 @@ export default function PublicProfileSettings() {
                 setIsPublic(p.publicProfile.isPublic);
                 setUsername(p.publicProfile.username);
                 setBio(p.publicProfile.bio);
+                setAvatar(p.publicProfile.avatar || 'default');
                 setVisibleSections(p.publicProfile.visibleSections);
                 setUsernameStatus('success'); // Assume existing is valid
             }
@@ -103,6 +112,7 @@ export default function PublicProfileSettings() {
               username,
               isPublic,
               bio,
+              avatar,
               visibleSections
           };
 
@@ -176,6 +186,22 @@ export default function PublicProfileSettings() {
                             value={bio}
                             onChange={e => setBio(e.target.value)}
                         />
+                    </div>
+
+                    {/* Avatar Selection */}
+                    <div>
+                        <Text strong className="block mb-3">Choose Avatar</Text>
+                        <div className="flex gap-4 flex-wrap">
+                            {AVATAR_OPTIONS.map(opt => (
+                                <div 
+                                    key={opt.id}
+                                    className={`cursor-pointer p-1 rounded-full border-2 transition-all ${avatar === opt.id ? 'border-indigo-600 scale-110' : 'border-transparent hover:border-gray-300'}`}
+                                    onClick={() => setAvatar(opt.id)}
+                                >
+                                    <img src={opt.url} alt={opt.id} className="w-12 h-12 rounded-full bg-gray-100" />
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
                     {/* Toggles */}

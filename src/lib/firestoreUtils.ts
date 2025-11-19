@@ -6,6 +6,7 @@ export interface PublicProfileConfig {
     username: string;
     isPublic: boolean;
     bio: string;
+    avatar: string; // New: Avatar selection
     visibleSections: {
         ocean: boolean;
         mbti: boolean;

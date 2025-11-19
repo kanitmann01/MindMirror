@@ -40,6 +40,9 @@ const PublicProfilePage = () => {
 
   const { profile, media, moods } = data;
   const config = profile.publicProfile!;
+  const avatarUrl = config.avatar && config.avatar !== 'default' 
+      ? `https://api.dicebear.com/7.x/${config.avatar === 'robot' ? 'bottts' : config.avatar === 'mind' ? 'identicon' : 'shapes'}/svg?seed=${config.avatar === 'robot' ? 'Brain' : config.avatar === 'mind' ? 'Mind' : 'Mirror'}`
+      : profile.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${config.username}`;
 
   const graphData = transformToGraphData(profile, media);
 
@@ -49,7 +52,7 @@ const PublicProfilePage = () => {
         {/* Header / Hero */}
         <Card className="mb-8 shadow-lg border-0 bg-white/90 backdrop-blur-md">
            <div className="flex flex-col md:flex-row items-center gap-6 text-center md:text-left">
-              <Avatar size={120} src={profile.photoURL} icon={<UserOutlined />} className="border-4 border-indigo-100" />
+              <Avatar size={120} src={avatarUrl} icon={<UserOutlined />} className="border-4 border-indigo-100" />
               <div className="flex-1">
                   <div className="flex items-center justify-center md:justify-start gap-2">
                       <Title level={2} style={{ marginBottom: 0 }}>{profile.displayName}</Title>
