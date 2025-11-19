@@ -1,0 +1,41 @@
+{
+  "name": "brain-mirror",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@ant-design/charts": "^2.6.6",
+    "@ant-design/graphs": "^2.1.1",
+    "@ant-design/nextjs-registry": "^1.2.0",
+    "@ant-design/v5-patch-for-react-19": "^1.0.3",
+    "@icons-pack/react-simple-icons": "^13.8.0",
+    "antd": "^5.29.1",
+    "firebase": "^12.6.0",
+    "next": "16.0.3",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-force-graph-2d": "^1.29.0",
+    "react-force-graph-3d": "^1.29.0",
+    "three": "^0.168.0",
+    "three-spritetext": "^1.10.0",
+    "vanta": "^0.5.24"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.0.3",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "resolutions": {
+    "three": "0.168.0"
+  }
+}
