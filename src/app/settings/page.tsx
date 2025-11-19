@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Button, Card, Typography, App, Divider } from 'antd';
-import { ExclamationCircleOutlined, DownloadOutlined, DeleteOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
+import { ExclamationCircleOutlined, DownloadOutlined, DeleteOutlined, SafetyCertificateOutlined, UserOutlined } from '@ant-design/icons';
 import { useAuth } from '@/context/AuthContext';
 import { getUserProfile, getMediaItems, deleteUserData } from '@/lib/firestoreUtils';
 import { useRouter } from 'next/navigation';
@@ -67,6 +67,15 @@ export default function SettingsPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6"> 
       <Title level={2}>Settings</Title>
+      
+      <Card title="Public Profile" className="shadow-sm">
+        <Paragraph>
+            Manage your public presence, bio, and what you share with the world.
+        </Paragraph>
+        <Button type="primary" icon={<UserOutlined />} onClick={() => router.push('/settings/public-profile')}>
+            Manage Public Profile
+        </Button>
+      </Card>
       
       <Card title="Data Privacy & Control" className="shadow-sm">
         <Paragraph>

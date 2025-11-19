@@ -1,39 +1,55 @@
 'use client';
 
 import React from 'react';
-import { Typography, Divider, Anchor, Card } from 'antd';
-import { SafetyCertificateOutlined, DatabaseOutlined, RobotOutlined, EyeOutlined, DeleteOutlined } from '@ant-design/icons';
+import { Typography, Divider, Anchor, Card, Button } from 'antd';
+import { SafetyCertificateOutlined, DatabaseOutlined, RobotOutlined, EyeOutlined, DeleteOutlined, ArrowLeftOutlined } from '@ant-design/icons';
+import { useRouter } from 'next/navigation';
 
 const { Title, Paragraph, Text } = Typography;
 const { Link } = Anchor;
 
 const PrivacyPage = () => {
-  return (
-    <div className="max-w-5xl mx-auto py-12 px-6 flex gap-10">
-      
-      {/* Sidebar Navigation (Sticky) */}
-      <div className="hidden md:block w-64 flex-shrink-0">
-        <div className="sticky top-24">
-            <Title level={5} className="mb-4 text-gray-400 uppercase tracking-wider text-xs">Contents</Title>
-            <Anchor
-                targetOffset={100}
-                items={[
-                    { key: 'intro', href: '#intro', title: 'Introduction' },
-                    { key: 'data-collection', href: '#data-collection', title: 'Data We Collect' },
-                    { key: 'ai-transparency', href: '#ai-transparency', title: 'AI & Algorithms' },
-                    { key: 'cookies', href: '#cookies', title: 'Cookies & Tracking' },
-                    { key: 'rights', href: '#rights', title: 'Your Rights' },
-                    { key: 'contact', href: '#contact', title: 'Contact' },
-                ]}
-            />
-        </div>
-      </div>
+  const router = useRouter();
 
-      {/* Main Content */}
-      <div className="flex-1 space-y-12">
+  return (
+    <div className="min-h-screen bg-white"> {/* Force white background */}
+      <div className="max-w-5xl mx-auto py-12 px-6 flex gap-10">
         
-        <section id="intro">
-            <div className="mb-6">
+        {/* Sidebar Navigation (Sticky) */}
+        <div className="hidden md:block w-64 flex-shrink-0">
+          <div className="sticky top-24">
+              <Button 
+                  type="text" 
+                  icon={<ArrowLeftOutlined />} 
+                  className="mb-6 pl-0 hover:bg-transparent" 
+                  onClick={() => router.back()}
+              >
+                  Back
+              </Button>
+              
+              <Title level={5} className="mb-4 text-gray-400 uppercase tracking-wider text-xs">Contents</Title>
+              <Anchor
+                  targetOffset={100}
+                  items={[
+                      { key: 'intro', href: '#intro', title: 'Introduction' },
+                      { key: 'data-collection', href: '#data-collection', title: 'Data We Collect' },
+                      { key: 'ai-transparency', href: '#ai-transparency', title: 'AI & Algorithms' },
+                      { key: 'cookies', href: '#cookies', title: 'Cookies & Tracking' },
+                      { key: 'rights', href: '#rights', title: 'Your Rights' },
+                      { key: 'contact', href: '#contact', title: 'Contact' },
+                  ]}
+              />
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 space-y-12">
+          
+          <section id="intro">
+              <div className="md:hidden mb-4">
+                  <Button icon={<ArrowLeftOutlined />} onClick={() => router.back()}>Back</Button>
+              </div>
+              <div className="mb-6">
                 <SafetyCertificateOutlined className="text-4xl text-indigo-600 mb-4" />
                 <Title level={1} className="!mb-2">Privacy Policy</Title>
                 <Text type="secondary" className="text-lg">Last Updated: November 2025</Text>

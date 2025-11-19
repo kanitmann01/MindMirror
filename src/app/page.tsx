@@ -97,6 +97,9 @@ export default function LandingPage() {
         {/* Footer */}
         <footer className="text-center py-8 text-slate-500 font-medium">
           © {new Date().getFullYear()} BrainMirror. Your mind, visualized.
+          <div className="mt-2 text-sm">
+             <a href="/privacy" className="hover:text-indigo-500 transition-colors">Privacy Policy</a>
+          </div>
         </footer>
       </div>
     </VantaBackground>

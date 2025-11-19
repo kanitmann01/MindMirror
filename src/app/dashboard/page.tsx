@@ -9,7 +9,7 @@ import MoodTracker from '@/components/MoodTracker';
 import InsightsSection from '@/components/InsightsSection';
 import { transformToGraphData } from '@/lib/graphUtils';
 import { useRouter } from 'next/navigation';
-import { PlusOutlined, ThunderboltOutlined, SmileOutlined } from '@ant-design/icons';
+import { PlusOutlined, ThunderboltOutlined, SmileOutlined, UserOutlined } from '@ant-design/icons';
 import InfoTooltip from '@/components/InfoTooltip';
 
 const { Title, Paragraph } = Typography;
@@ -81,6 +81,9 @@ export default function DashboardPage() {
                Unlock Deep Insights
              </Button>
           )}
+          <Button icon={<UserOutlined />} onClick={() => router.push('/settings/public-profile')}>
+            Public Profile
+          </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => router.push('/add-media')}>
             Add Media
           </Button>
