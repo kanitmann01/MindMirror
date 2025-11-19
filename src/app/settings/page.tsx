@@ -65,10 +65,10 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto py-10 space-y-12"> 
-      <Title level={2}>Settings</Title>
+    <div className="max-w-2xl mx-auto py-10 flex flex-col gap-10"> 
+      <Title level={2} className="!mb-0">Settings</Title>
       
-      <Card title="Public Profile" className="shadow-sm">
+      <Card title="Public Profile" className="shadow-sm mt-6">
         <Paragraph>
             Manage your public presence, bio, and what you share with the world.
         </Paragraph>
@@ -77,7 +77,7 @@ export default function SettingsPage() {
         </Button>
       </Card>
       
-      <Card title="Data Privacy & Control" className="shadow-sm">
+      <Card title="Data Privacy & Control" className="shadow-sm mt-6">
         <Paragraph>
           You own your data. You can export it anytime or delete your account permanently.
         </Paragraph>
@@ -95,11 +95,13 @@ export default function SettingsPage() {
         </Button>
       </Card>
 
-      <Card title="Session" className="shadow-sm">
+      <Card title="Session" className="shadow-sm mt-6">
         <Button onClick={logout}>Logout</Button>
       </Card>
 
-      <FeedbackForm />
+      <div className="mt-6">
+        <FeedbackForm />
+      </div>
     </div>
   );
 }

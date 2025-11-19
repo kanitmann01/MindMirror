@@ -76,9 +76,9 @@ BrainMirror is an advanced self-discovery platform that combines psychological f
    ```
 
 4. **Run Development Server**
-   ```bash
-   yarn dev
-   ```
+```bash
+yarn dev
+```
    Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---

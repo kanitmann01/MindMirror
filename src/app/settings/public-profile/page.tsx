@@ -4,13 +4,15 @@ import React, { useState, useEffect } from 'react';
 import { Card, Typography, Switch, Input, Button, Form, App, Divider, Spin } from 'antd';
 import { UserProfile, getUserProfile, saveUserProfile, isUsernameTaken, claimUsername } from '@/lib/firestoreUtils';
 import { useAuth } from '@/context/AuthContext';
-import { CopyOutlined, CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined } from '@ant-design/icons';
+import { CopyOutlined, CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined, EyeOutlined } from '@ant-design/icons';
+import { useRouter } from 'next/navigation';
 
 const { Title, Text, Paragraph } = Typography;
 
 export default function PublicProfileSettings() {
   const { user } = useAuth();
   const { message } = App.useApp();
+  const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -136,6 +138,14 @@ export default function PublicProfileSettings() {
       navigator.clipboard.writeText(url);
       message.success("Link copied!");
   };
+  
+  const previewProfile = () => {
+      if (username) {
+          window.open(`/u/${username}`, '_blank');
+      } else {
+          message.warning("Please set a username first!");
+      }
+  };
 
   if (loading) return <Spin />;
 
@@ -231,9 +241,14 @@ export default function PublicProfileSettings() {
                         </div>
                     </div>
 
-                    <Button type="primary" block size="large" onClick={handleSave} loading={saving}>
-                        Save Changes
-                    </Button>
+                    <div className="flex gap-3">
+                        <Button type="default" icon={<EyeOutlined />} onClick={previewProfile} className="flex-1">
+                            Preview Profile
+                        </Button>
+                        <Button type="primary" size="large" onClick={handleSave} loading={saving} className="flex-1">
+                            Save Changes
+                        </Button>
+                    </div>
                 </div>
             )}
         </Card>
