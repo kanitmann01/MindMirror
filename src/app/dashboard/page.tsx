@@ -58,10 +58,10 @@ export default function DashboardPage() {
   const showDeepInsights = profile.mbti && profile.motivations;
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
+    <div className="space-y-6"> {/* Added vertical spacing container */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <Title level={2} style={{ margin: 0 }}>Your BrainMirror</Title>
-        <div className="space-x-3">
+        <div className="flex flex-wrap gap-3">
           {!showDeepInsights && (
              <Button type="dashed" icon={<ThunderboltOutlined />} onClick={() => router.push('/onboarding')}>
                Unlock Deep Insights
@@ -76,11 +76,11 @@ export default function DashboardPage() {
       <Row gutter={[24, 24]}>
         {/* Archetype Card */}
         <Col xs={24} md={8}>
-           <div className="space-y-6 h-full">
+           <div className="flex flex-col gap-6 h-full"> {/* Changed to flex-col with explicit gap */}
              <Card className="shadow-sm hover:shadow-md transition-shadow" style={{ borderTop: `4px solid ${profile.archetype?.color || '#6B7FD7'}` }}>
                <Title level={3}>{profile.archetype?.name}</Title>
                <Paragraph>{profile.archetype?.description}</Paragraph>
-               <div className="mb-4">
+               <div className="mb-4 flex flex-wrap gap-2">
                  {profile.archetype?.traits.map(t => (
                    <Tag key={t} color="blue">{t}</Tag>
                  ))}
@@ -103,8 +103,8 @@ export default function DashboardPage() {
 
         {/* Mind Map & Insights */}
         <Col xs={24} md={16}>
-           <div className="space-y-6">
-             <Card className="shadow-sm" title="Mind Map">
+           <div className="flex flex-col gap-6">
+             <Card className="shadow-sm" title="Mind Map" bodyStyle={{ padding: 0 }}> {/* Removed default padding to let graph fill */}
                <MindMap data={graphData} />
              </Card>
              
