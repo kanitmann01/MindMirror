@@ -58,92 +58,93 @@ const PrivacyPage = () => {
                 BrainMirror is built on a foundation of <strong>trust and transparency</strong>. 
                 We believe your psychological data is sensitive and personal. This policy explains clearly what we collect, why we collect it, and how you stay in control.
             </Paragraph>
-        </section>
+          </section>
 
-        <Divider />
+          <Divider />
 
-        <section id="data-collection">
-            <Title level={2}><DatabaseOutlined /> Data We Collect</Title>
-            <Paragraph>
-                We only collect data necessary to provide you with personalized psychological insights.
-            </Paragraph>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                <Card title="Identity & Auth" size="small" className="bg-gray-50">
-                    Email address, display name, and avatar (via Google Sign-In).
-                </Card>
-                <Card title="Psychological Input" size="small" className="bg-gray-50">
-                    Quiz answers, mood logs, and journaling notes you explicitly enter.
-                </Card>
-                <Card title="Media History" size="small" className="bg-gray-50">
-                    Titles and metadata of books, movies, and videos you add or import (e.g., YouTube subscriptions).
-                </Card>
-                <Card title="Derived Data" size="small" className="bg-gray-50">
-                    Personality scores (OCEAN), archetypes, and AI-generated summaries derived from your inputs.
-                </Card>
-            </div>
-        </section>
+          <section id="data-collection">
+              <Title level={2}><DatabaseOutlined /> Data We Collect</Title>
+              <Paragraph>
+                  We only collect data necessary to provide you with personalized psychological insights.
+              </Paragraph>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                  <Card title="Identity & Auth" size="small" className="bg-gray-50">
+                      Email address, display name, and avatar (via Google Sign-In).
+                  </Card>
+                  <Card title="Psychological Input" size="small" className="bg-gray-50">
+                      Quiz answers, mood logs, and journaling notes you explicitly enter.
+                  </Card>
+                  <Card title="Media History" size="small" className="bg-gray-50">
+                      Titles and metadata of books, movies, and videos you add or import (e.g., YouTube subscriptions).
+                  </Card>
+                  <Card title="Derived Data" size="small" className="bg-gray-50">
+                      Personality scores (OCEAN), archetypes, and AI-generated summaries derived from your inputs.
+                  </Card>
+              </div>
+          </section>
 
-        <Divider />
+          <Divider />
 
-        <section id="ai-transparency">
-            <Title level={2}><RobotOutlined /> AI Transparency</Title>
-            <Paragraph>
-                BrainMirror uses **Google Gemini** (an artificial intelligence model) to analyze your data. Here is the ethical breakdown:
-            </Paragraph>
-            <ul className="list-disc list-inside space-y-2 text-gray-700 ml-2">
-                <li><strong>Anonymized Processing:</strong> When we ask the AI for insights, we send only the necessary text (e.g., "User read 'Sapiens' and feels 'Curious'"). We do not send your email or unique ID to the AI training layer.</li>
-                <li><strong>No Training on Your Data:</strong> We rely on the public API guarantees of our AI partners, which state that API data is not used to train their foundation models.</li>
-                <li><strong>Probabilistic Nature:</strong> AI insights are estimates, not medical diagnoses. They reflect patterns in the data you provide.</li>
-            </ul>
-        </section>
+          <section id="ai-transparency">
+              <Title level={2}><RobotOutlined /> AI Transparency</Title>
+              <Paragraph>
+                  BrainMirror uses **Google Gemini** (an artificial intelligence model) to analyze your data. Here is the ethical breakdown:
+              </Paragraph>
+              <ul className="list-disc list-inside space-y-2 text-gray-700 ml-2">
+                  <li><strong>Anonymized Processing:</strong> When we ask the AI for insights, we send only the necessary text (e.g., "User read 'Sapiens' and feels 'Curious'"). We do not send your email or unique ID to the AI training layer.</li>
+                  <li><strong>No Training on Your Data:</strong> We rely on the public API guarantees of our AI partners, which state that API data is not used to train their foundation models.</li>
+                  <li><strong>Probabilistic Nature:</strong> AI insights are estimates, not medical diagnoses. They reflect patterns in the data you provide.</li>
+              </ul>
+          </section>
 
-        <Divider />
+          <Divider />
 
-        <section id="cookies">
-            <Title level={2}><EyeOutlined /> Cookies & Tracking</Title>
-            <Paragraph>
-                We use cookies primarily for <strong>essential functionality</strong> (keeping you logged in).
-            </Paragraph>
-            <Paragraph>
-                We may use limited analytics cookies to understand aggregate usage patterns (e.g., "Which feature is most popular?"). 
-                You can opt-out of non-essential cookies via the consent banner at any time.
-            </Paragraph>
-        </section>
+          <section id="cookies">
+              <Title level={2}><EyeOutlined /> Cookies & Tracking</Title>
+              <Paragraph>
+                  We use cookies primarily for <strong>essential functionality</strong> (keeping you logged in).
+              </Paragraph>
+              <Paragraph>
+                  We may use limited analytics cookies to understand aggregate usage patterns (e.g., "Which feature is most popular?"). 
+                  You can opt-out of non-essential cookies via the consent banner at any time.
+              </Paragraph>
+          </section>
 
-        <Divider />
+          <Divider />
 
-        <section id="rights">
-            <Title level={2}><DeleteOutlined /> Your Rights</Title>
-            <Paragraph>
-                You have absolute control over your digital mind map.
-            </Paragraph>
-            <div className="space-y-4">
-                <div>
-                    <Text strong>Export Data:</Text>
-                    <Paragraph className="text-sm text-gray-600">Download a full JSON copy of your profile, media, and moods from Settings.</Paragraph>
-                </div>
-                <div>
-                    <Text strong>Delete Account:</Text>
-                    <Paragraph className="text-sm text-gray-600">Permanently erase your account and all associated data from our servers instantly.</Paragraph>
-                </div>
-                <div>
-                    <Text strong>Public Visibility:</Text>
-                    <Paragraph className="text-sm text-gray-600">Your profile is Private by default. You must explicitly enable "Public Profile" to share it.</Paragraph>
-                </div>
-            </div>
-        </section>
+          <section id="rights">
+              <Title level={2}><DeleteOutlined /> Your Rights</Title>
+              <Paragraph>
+                  You have absolute control over your digital mind map.
+              </Paragraph>
+              <div className="space-y-4">
+                  <div>
+                      <Text strong>Export Data:</Text>
+                      <Paragraph className="text-sm text-gray-600">Download a full JSON copy of your profile, media, and moods from Settings.</Paragraph>
+                  </div>
+                  <div>
+                      <Text strong>Delete Account:</Text>
+                      <Paragraph className="text-sm text-gray-600">Permanently erase your account and all associated data from our servers instantly.</Paragraph>
+                  </div>
+                  <div>
+                      <Text strong>Public Visibility:</Text>
+                      <Paragraph className="text-sm text-gray-600">Your profile is Private by default. You must explicitly enable "Public Profile" to share it.</Paragraph>
+                  </div>
+              </div>
+          </section>
 
-        <Divider />
+          <Divider />
 
-        <section id="contact">
-            <Title level={2}>Contact Us</Title>
-            <Paragraph>
-                If you have questions about this policy or your data, please reach out.
-            </Paragraph>
-            <a href="mailto:privacy@brainmirror.app" className="text-indigo-600 font-medium hover:underline">privacy@brainmirror.app</a>
-        </section>
+          <section id="contact">
+              <Title level={2}>Contact Us</Title>
+              <Paragraph>
+                  If you have questions about this policy or your data, please reach out.
+              </Paragraph>
+              <a href="mailto:privacy@brainmirror.app" className="text-indigo-600 font-medium hover:underline">privacy@brainmirror.app</a>
+          </section>
 
+        </div>
       </div>
     </div>
   );

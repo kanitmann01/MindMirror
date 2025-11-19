@@ -1,15 +1,15 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { Typography, Card, Row, Col, Tag, Spin, Button, FloatButton, Grid } from 'antd';
+import { Typography, Card, Row, Col, Tag, Spin, Button, FloatButton, Grid, Modal, List, Popconfirm, App } from 'antd';
 import { useAuth } from '@/context/AuthContext';
-import { getUserProfile, getMediaItems, UserProfile, MediaItem } from '@/lib/firestoreUtils';
+import { getUserProfile, getMediaItems, UserProfile, MediaItem, deleteMediaItem } from '@/lib/firestoreUtils';
 import MindMap from '@/components/MindMap';
 import MoodTracker from '@/components/MoodTracker';
 import InsightsSection from '@/components/InsightsSection';
 import { transformToGraphData } from '@/lib/graphUtils';
 import { useRouter } from 'next/navigation';
-import { PlusOutlined, ThunderboltOutlined, SmileOutlined, UserOutlined } from '@ant-design/icons';
+import { PlusOutlined, ThunderboltOutlined, SmileOutlined, UserOutlined, DeleteOutlined } from '@ant-design/icons';
 import InfoTooltip from '@/components/InfoTooltip';
 
 const { Title, Paragraph } = Typography;
@@ -17,9 +17,11 @@ const { useBreakpoint } = Grid;
 
 export default function DashboardPage() {
   const { user, loading } = useAuth();
+  const { message } = App.useApp();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [fetching, setFetching] = useState(true);
+  const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
   const router = useRouter();
   const screens = useBreakpoint();
 
@@ -54,6 +56,18 @@ export default function DashboardPage() {
       initFetch();
     }
   }, [user, loading, router, refreshData]);
+
+  const handleDeleteMedia = async (mediaId: string) => {
+    if (!user) return;
+    try {
+        await deleteMediaItem(user.uid, mediaId);
+        message.success("Media item deleted");
+        refreshData();
+    } catch (error) {
+        console.error(error);
+        message.error("Failed to delete media");
+    }
+  };
 
   if (loading || fetching) return <div className="flex justify-center items-center h-full"><Spin size="large" /></div>;
 
@@ -156,7 +170,10 @@ export default function DashboardPage() {
              </Card>
              
              {/* Recent Inputs (Moved up for better flow) */}
-             <Card title="Recent Inputs" extra={<Button type="link" size="small" onClick={() => router.push('/add-media')}>View All</Button>}>
+             <Card 
+                title="Recent Inputs" 
+                extra={<Button type="link" size="small" onClick={() => setIsMediaModalOpen(true)}>View All</Button>}
+             >
                 {media.length === 0 ? (
                   <div className="text-center py-6 bg-gray-50 rounded border border-dashed">
                       <p className="text-gray-400 mb-2">No media added yet.</p>
@@ -194,6 +211,47 @@ export default function DashboardPage() {
            </div>
         </Col>
       </Row>
+
+      {/* Media Modal */}
+      <Modal 
+          title="All Media History" 
+          open={isMediaModalOpen} 
+          onCancel={() => setIsMediaModalOpen(false)} 
+          footer={null}
+          width={600}
+      >
+          <List
+              itemLayout="horizontal"
+              dataSource={media}
+              renderItem={(item) => (
+                  <List.Item
+                      actions={[
+                          <Popconfirm 
+                              key="delete"
+                              title="Delete this item?" 
+                              description="This will affect your personality score analysis."
+                              onConfirm={() => handleDeleteMedia(item.id!)}
+                              okText="Yes"
+                              cancelText="No"
+                          >
+                              <Button type="text" danger icon={<DeleteOutlined />} />
+                          </Popconfirm>
+                      ]}
+                  >
+                      <List.Item.Meta
+                          title={<span className="font-medium">{item.title}</span>}
+                          description={
+                              <div className="flex gap-2 items-center">
+                                  <Tag>{item.category}</Tag> 
+                                  <span className="text-xs text-gray-400">{new Date(item.createdAt).toLocaleDateString()}</span>
+                              </div>
+                          }
+                      />
+                      <div><Tag color={item.rating >= 4 ? 'green' : 'orange'}>{item.rating}/5</Tag></div>
+                  </List.Item>
+              )}
+          />
+      </Modal>
     </div>
   );
 }

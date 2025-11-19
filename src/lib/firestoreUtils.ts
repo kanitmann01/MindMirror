@@ -119,6 +119,19 @@ export const getMediaItems = async (uid: string): Promise<MediaItem[]> => {
 };
 
 /**
+ * Deletes a specific media item from the user's 'media' subcollection.
+ */
+export const deleteMediaItem = async (uid: string, mediaId: string) => {
+  try {
+    const mediaDocRef = doc(db, 'users', uid, 'media', mediaId);
+    await deleteDoc(mediaDocRef);
+  } catch (error) {
+    console.error("Error deleting media item:", error);
+    throw error;
+  }
+};
+
+/**
  * Adds a new mood entry to the user's 'moods' subcollection.
  */
 export const addMoodEntry = async (uid: string, entry: MoodEntry) => {

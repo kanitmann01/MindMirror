@@ -64,7 +64,7 @@ export default function RootLayout({
           <ConfigProvider theme={theme}>
             <App>
               <AuthProvider>
-                {children}
+        {children}
                 <CookieConsent />
               </AuthProvider>
             </App>

@@ -65,7 +65,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6"> 
+    <div className="max-w-2xl mx-auto py-8 space-y-10"> 
       <Title level={2}>Settings</Title>
       
       <Card title="Public Profile" className="shadow-sm">
