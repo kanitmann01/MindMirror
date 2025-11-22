@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
   try {
     // 1. Verify API Key
     const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
-    
+
     if (!apiKey) {
       return NextResponse.json({ error: 'Missing Gemini API Key' }, { status: 500 });
     }
@@ -31,23 +31,26 @@ export async function POST(req: NextRequest) {
       - Current OCEAN Scores: ${JSON.stringify(profile.oceanScore)}
       - MBTI: ${profile.mbti?.type}
       - Core Motivations: ${JSON.stringify(profile.motivations)}
+      - Previous Narrative Summary: ${profile.narrative_summary || "None yet."}
       
       Media History (Last 10):
       ${media?.slice(0, 10).map((m: any) => `- ${m.title} (${m.category}) [Tags: ${m.intent?.join(', ')}]`).join('\n')}
       
       Task:
-      1. infer a "Taste DNA" summary.
-      2. write a 2-paragraph empathetic narrative explaining *why* they consume this content and what it says about their cognition.
-      3. RE-EVALUATE their OCEAN scores based on the media evidence. (e.g., high complexity media -> higher Openness).
-      4. suggest 3 actionable growth paths.
-      5. provide a confidence score (0-100).
+      1. Update the "Running Narrative Summary" (max 3 sentences) to reflect the NEW media items while keeping the context of the previous summary.
+      2. infer a "Taste DNA" summary.
+      3. write a 2-paragraph empathetic narrative explaining *why* they consume this content and what it says about their cognition.
+      4. RE-EVALUATE their OCEAN scores based on the media evidence. (e.g., high complexity media -> higher Openness).
+      5. suggest 3 actionable growth paths.
+      6. provide a confidence score (0-100).
       
       Output strict JSON matching the provided schema.
+      Ensure the JSON includes a field "narrative_summary" for the running summary.
     `;
 
     // 4. Initialize Client
     const ai = new GoogleGenAI({ apiKey });
-    
+
     // 5. Call Model with JSON Mode
     const response: any = await ai.models.generateContent({
       model: 'gemini-2.5-pro',
@@ -63,9 +66,9 @@ export async function POST(req: NextRequest) {
     const text = typeof response.text === 'function' ? response.text() : (response.text || "{}");
     const data = JSON.parse(text);
 
-    return NextResponse.json({ 
-        insight: data.narrative, // Backward compatibility
-        structured: data 
+    return NextResponse.json({
+      insight: data.narrative, // Backward compatibility
+      structured: data
     });
 
   } catch (error: any) {
