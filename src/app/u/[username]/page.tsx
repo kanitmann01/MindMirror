@@ -7,7 +7,7 @@ import { FireFilled, TrophyOutlined, ShareAltOutlined, RocketOutlined, HomeOutli
 import { getPublicProfile, UserProfile, MediaItem, MoodEntry } from '@/lib/firestoreUtils';
 import { calculateBadges, BADGES } from '@/lib/gamificationUtils';
 import { calculateTimeDecay } from '@/lib/psychologyUtils';
-import DataAvatar from '@/components/DataAvatar';
+import DataAvatar from '../../../components/DataAvatar';
 import VantaBackground from '@/components/VantaBackground';
 import Head from 'next/head';
 import Link from 'next/link';
