@@ -79,27 +79,46 @@ export const ARCHETYPES: Record<string, Archetype> = {
   }
 };
 
+// --- Standardized Mood System ---
+export interface MoodConstant {
+  label: string;
+  color: string; // Hex
+  iconName?: string; // For reference if needed
+}
+
+export const MOOD_CONSTANTS: MoodConstant[] = [
+  { label: 'Happy', color: '#FFD700' },   // Amber/Gold
+  { label: 'Focused', color: '#00008B' }, // Deep Blue
+  { label: 'Calm', color: '#50C878' },    // Emerald Green
+  { label: 'Anxious', color: '#BF00FF' }, // Electric Purple
+  { label: 'Tired', color: '#708090' },   // Slate/Grey
+  { label: 'Sad', color: '#708090' },     // Slate/Grey (Shared color)
+];
+
 export interface Question {
   id: string;
   text: string;
   category: 'ocean' | 'mbti' | 'cognitive' | 'motivation';
   trait: string; // Specific trait within category (e.g. 'openness', 'EI', 'analytical')
-  reverse?: boolean; 
+  reverse?: boolean;
   options?: { label: string, value: number }[]; // Optional specific answers
+  // Semantic labels for slider
+  leftLabel?: string;
+  rightLabel?: string;
 }
 
 export const QUESTIONS: Question[] = [
   // OCEAN (Big Five)
-  { id: 'q1', text: 'I enjoy trying new and foreign foods.', category: 'ocean', trait: 'openness' },
-  { id: 'q2', text: 'I like to have a detailed plan.', category: 'ocean', trait: 'conscientiousness' },
-  { id: 'q3', text: 'I feel comfortable around people.', category: 'ocean', trait: 'extraversion' },
-  { id: 'q4', text: "I sympathize with others' feelings.", category: 'ocean', trait: 'agreeableness' },
-  { id: 'q5', text: 'I get stressed out easily.', category: 'ocean', trait: 'neuroticism' },
-  { id: 'q6', text: 'I have a vivid imagination.', category: 'ocean', trait: 'openness' },
-  { id: 'q7', text: 'I pay attention to details.', category: 'ocean', trait: 'conscientiousness' },
-  { id: 'q8', text: 'I keep in the background.', category: 'ocean', trait: 'extraversion', reverse: true },
-  { id: 'q9', text: "I am not interested in other people's problems.", category: 'ocean', trait: 'agreeableness', reverse: true },
-  { id: 'q10', text: 'I am relaxed most of the time.', category: 'ocean', trait: 'neuroticism', reverse: true },
+  { id: 'q1', text: 'I enjoy trying new and foreign foods.', category: 'ocean', trait: 'openness', leftLabel: 'Routine', rightLabel: 'Novelty' },
+  { id: 'q2', text: 'I like to have a detailed plan.', category: 'ocean', trait: 'conscientiousness', leftLabel: 'Spontaneous', rightLabel: 'Planned' },
+  { id: 'q3', text: 'I feel comfortable around people.', category: 'ocean', trait: 'extraversion', leftLabel: 'Solitary', rightLabel: 'Social' },
+  { id: 'q4', text: "I sympathize with others' feelings.", category: 'ocean', trait: 'agreeableness', leftLabel: 'Detached', rightLabel: 'Empathetic' },
+  { id: 'q5', text: 'I get stressed out easily.', category: 'ocean', trait: 'neuroticism', leftLabel: 'Resilient', rightLabel: 'Sensitive' },
+  { id: 'q6', text: 'I have a vivid imagination.', category: 'ocean', trait: 'openness', leftLabel: 'Grounded', rightLabel: 'Imaginative' },
+  { id: 'q7', text: 'I pay attention to details.', category: 'ocean', trait: 'conscientiousness', leftLabel: 'Big Picture', rightLabel: 'Detailed' },
+  { id: 'q8', text: 'I keep in the background.', category: 'ocean', trait: 'extraversion', reverse: true, leftLabel: 'Center Stage', rightLabel: 'Background' },
+  { id: 'q9', text: "I am not interested in other people's problems.", category: 'ocean', trait: 'agreeableness', reverse: true, leftLabel: 'Caring', rightLabel: 'Indifferent' },
+  { id: 'q10', text: 'I am relaxed most of the time.', category: 'ocean', trait: 'neuroticism', reverse: true, leftLabel: 'Anxious', rightLabel: 'Relaxed' },
 
   // MBTI - Dichotomies
   { id: 'mbti1', text: 'At parties, I prefer to:', category: 'mbti', trait: 'EI', options: [{ label: 'Interact with many, including strangers', value: 5 }, { label: 'Interact with a few known people', value: 1 }] },
@@ -112,11 +131,11 @@ export const QUESTIONS: Question[] = [
   { id: 'cog2', text: 'When faced with a decision, I usually:', category: 'cognitive', trait: 'fast_deliberative', options: [{ label: 'Decide quickly on gut instinct', value: 1 }, { label: 'Take time to weigh all options', value: 5 }] }, // 1=Fast, 5=Deliberative
 
   // Motivations
-  { id: 'mot1', text: 'It is very important to me to be successful and recognized.', category: 'motivation', trait: 'achievement' },
-  { id: 'mot2', text: 'I constantly want to learn how things work.', category: 'motivation', trait: 'curiosity' },
-  { id: 'mot3', text: 'I value deep connections with friends and family above all.', category: 'motivation', trait: 'sociality' },
-  { id: 'mot4', text: 'I prefer a stable and predictable life.', category: 'motivation', trait: 'security' },
-  { id: 'mot5', text: 'I am always looking for the next big adventure.', category: 'motivation', trait: 'novelty_seeking' },
+  { id: 'mot1', text: 'It is very important to me to be successful and recognized.', category: 'motivation', trait: 'achievement', leftLabel: 'Modest', rightLabel: 'Ambitious' },
+  { id: 'mot2', text: 'I constantly want to learn how things work.', category: 'motivation', trait: 'curiosity', leftLabel: 'Content', rightLabel: 'Inquisitive' },
+  { id: 'mot3', text: 'I value deep connections with friends and family above all.', category: 'motivation', trait: 'sociality', leftLabel: 'Independent', rightLabel: 'Connected' },
+  { id: 'mot4', text: 'I prefer a stable and predictable life.', category: 'motivation', trait: 'security', leftLabel: 'Dynamic', rightLabel: 'Stable' },
+  { id: 'mot5', text: 'I am always looking for the next big adventure.', category: 'motivation', trait: 'novelty_seeking', leftLabel: 'Routine', rightLabel: 'Adventure' },
 ];
 
 /**
@@ -199,7 +218,7 @@ export const calculateCognitive = (answers: Record<string, number>): CognitiveSt
  */
 export const calculateMotivations = (answers: Record<string, number>): Motivations => {
   const scores: Motivations = { achievement: 0, curiosity: 0, sociality: 0, security: 0, novelty_seeking: 0 };
-  
+
   QUESTIONS.filter(q => q.category === 'motivation').forEach(q => {
     if (answers[q.id]) {
       scores[q.trait as keyof Motivations] = answers[q.id] * 20; // 1-5 -> 20-100
@@ -278,7 +297,7 @@ export const analyzeMediaContent = (title: string, description: string = ''): { 
     mood.add('relaxing');
     mood.add('uplifting');
   }
-  
+
   // Defaults if nothing found
   if (mood.size === 0) mood.add('uplifting');
   if (intent.size === 0) intent.add('escapism');
@@ -290,70 +309,105 @@ export const analyzeMediaContent = (title: string, description: string = ''): { 
 };
 
 /**
+ * Calculates a time-decay weight based on how long ago an item was logged.
+ * Uses a Half-Life formula: Weight = 0.5 ^ (DaysAgo / 90).
+ * Items < 7 days old are ~1.0.
+ * Items > 90 days old are ~0.5.
+ * Clamped between 0.1 and 1.0.
+ * Returns 1.0 (full weight) if date is missing or invalid.
+ */
+export const calculateTimeDecay = (dateLogged?: Date | string | null): number => {
+  // Handle missing dates by assuming "today" (full weight)
+  if (!dateLogged) return 1.0;
+
+  const now = new Date();
+  const logged = new Date(dateLogged);
+
+  // Handle invalid dates
+  if (isNaN(logged.getTime())) return 1.0;
+
+  const diffTime = Math.abs(now.getTime() - logged.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  // If less than 7 days, treat as fresh (1.0)
+  if (diffDays < 7) return 1.0;
+
+  // Half-life formula: 90 days = 0.5 weight
+  const weight = Math.pow(0.5, diffDays / 90);
+
+  // Clamp between 0.1 and 1.0
+  return Math.max(0.1, Math.min(1.0, weight));
+};
+
+/**
  * Update OCEAN scores based on new media items.
  * This creates a "living profile" that evolves with consumption habits.
  */
 export const updateScoresWithMedia = (
   currentScores: OCEANScore,
-  mediaItems: Array<{ intent?: string[]; mood?: string[]; category?: string }>
+  mediaItems: Array<{ intent?: string[]; mood?: string[]; category?: string; createdAt?: string | Date }>
 ): OCEANScore => {
   const updatedScores = { ...currentScores };
-  
-  // Weight: How much influence does 1 media item have?
-  const MEDIA_WEIGHT = 0.5; // Increased from 0.3 to make changes more visible
-  
+
+  // Base Weight: How much influence does 1 media item have?
+  const BASE_WEIGHT = 0.5;
+
   mediaItems.forEach(item => {
+    // Calculate time decay weight (handles missing dates internally)
+    const timeWeight = calculateTimeDecay(item.createdAt);
+    const effectiveWeight = BASE_WEIGHT * timeWeight;
+
     if (item.intent) {
-        item.intent.forEach(intent => {
-          switch(intent) {
-            case 'learning':
-              updatedScores.openness = Math.min(100, updatedScores.openness + MEDIA_WEIGHT);
-              break;
-            case 'social':
-              updatedScores.extraversion = Math.min(100, updatedScores.extraversion + MEDIA_WEIGHT);
-              break;
-            case 'challenge':
-              updatedScores.conscientiousness = Math.min(100, updatedScores.conscientiousness + MEDIA_WEIGHT);
-              break;
-            case 'escapism':
-              updatedScores.neuroticism = Math.min(100, updatedScores.neuroticism + MEDIA_WEIGHT * 0.5);
-              break;
-            case 'inspiration':
-              updatedScores.openness = Math.min(100, updatedScores.openness + MEDIA_WEIGHT);
-              updatedScores.agreeableness = Math.min(100, updatedScores.agreeableness + MEDIA_WEIGHT * 0.5);
-              break;
-          }
-        });
+      item.intent.forEach(intent => {
+        switch (intent) {
+          case 'learning':
+            updatedScores.openness = Math.min(100, updatedScores.openness + effectiveWeight);
+            break;
+          case 'social':
+            updatedScores.extraversion = Math.min(100, updatedScores.extraversion + effectiveWeight);
+            break;
+          case 'challenge':
+            updatedScores.conscientiousness = Math.min(100, updatedScores.conscientiousness + effectiveWeight);
+            break;
+          case 'escapism':
+            updatedScores.neuroticism = Math.min(100, updatedScores.neuroticism + effectiveWeight * 0.5);
+            break;
+          case 'inspiration':
+            updatedScores.openness = Math.min(100, updatedScores.openness + effectiveWeight);
+            updatedScores.agreeableness = Math.min(100, updatedScores.agreeableness + effectiveWeight * 0.5);
+            break;
+        }
+      });
     }
     if (item.mood) {
-         item.mood.forEach(mood => {
-            switch (mood) {
-              case 'uplifting':
-                updatedScores.extraversion = Math.min(100, updatedScores.extraversion + MEDIA_WEIGHT);
-                break;
-              case 'relaxing':
-                updatedScores.neuroticism = Math.max(0, updatedScores.neuroticism - MEDIA_WEIGHT);
-                break;
-              case 'thought-provoking':
-                updatedScores.openness = Math.min(100, updatedScores.openness + MEDIA_WEIGHT);
-                break;
-              case 'intense':
-                 updatedScores.extraversion = Math.min(100, updatedScores.extraversion + MEDIA_WEIGHT * 0.5);
-                 break;
-               case 'emotional':
-                 updatedScores.neuroticism = Math.min(100, updatedScores.neuroticism + MEDIA_WEIGHT * 0.5);
-                 updatedScores.agreeableness = Math.min(100, updatedScores.agreeableness + MEDIA_WEIGHT * 0.5);
-                 break;
-            }
-          });
+      item.mood.forEach(mood => {
+        switch (mood) {
+          case 'uplifting':
+            updatedScores.extraversion = Math.min(100, updatedScores.extraversion + effectiveWeight);
+            break;
+          case 'relaxing':
+            updatedScores.neuroticism = Math.max(0, updatedScores.neuroticism - effectiveWeight);
+            break;
+          case 'thought-provoking':
+            updatedScores.openness = Math.min(100, updatedScores.openness + effectiveWeight);
+            break;
+          case 'intense':
+            updatedScores.extraversion = Math.min(100, updatedScores.extraversion + effectiveWeight * 0.5);
+            break;
+          case 'emotional':
+            updatedScores.neuroticism = Math.min(100, updatedScores.neuroticism + effectiveWeight * 0.5);
+            updatedScores.agreeableness = Math.min(100, updatedScores.agreeableness + effectiveWeight * 0.5);
+            break;
+        }
+      });
     }
   });
-  
+
   // Round to integers for cleaner display
   (Object.keys(updatedScores) as Array<keyof OCEANScore>).forEach((key) => {
     updatedScores[key] = Math.round(updatedScores[key]);
   });
-  
+
   return updatedScores;
 };
 
@@ -361,44 +415,44 @@ export const updateScoresWithMedia = (
  * Updates OCEAN scores based on a new mood entry.
  */
 export const updateScoresWithMood = (
-    currentScores: OCEANScore,
-    moodEntry: { mood: string, intensity: number }
-  ): OCEANScore => {
-    const updatedScores = { ...currentScores };
-    // Moods have a temporary but immediate impact
-    const MOOD_WEIGHT = 1.0; 
-  
-    switch (moodEntry.mood) {
-      case 'Happy':
-        updatedScores.extraversion = Math.min(100, updatedScores.extraversion + MOOD_WEIGHT);
-        updatedScores.neuroticism = Math.max(0, updatedScores.neuroticism - MOOD_WEIGHT);
-        break;
-      case 'Anxious':
-        updatedScores.neuroticism = Math.min(100, updatedScores.neuroticism + MOOD_WEIGHT);
-        break;
-      case 'Focused':
-        updatedScores.conscientiousness = Math.min(100, updatedScores.conscientiousness + MOOD_WEIGHT);
-        break;
-      case 'Calm':
-        updatedScores.neuroticism = Math.max(0, updatedScores.neuroticism - MOOD_WEIGHT);
-        break;
-      case 'Tired':
-        updatedScores.conscientiousness = Math.max(0, updatedScores.conscientiousness - MOOD_WEIGHT);
-        break;
-      case 'Sad':
-        updatedScores.neuroticism = Math.min(100, updatedScores.neuroticism + MOOD_WEIGHT);
-        updatedScores.extraversion = Math.max(0, updatedScores.extraversion - MOOD_WEIGHT);
-        break;
-    }
-  
-    // Round to integers
-    (Object.keys(updatedScores) as Array<keyof OCEANScore>).forEach((key) => {
-      updatedScores[key] = Math.round(updatedScores[key]);
-    });
-  
-    return updatedScores;
-  };
+  currentScores: OCEANScore,
+  moodEntry: { mood: string, intensity: number }
+): OCEANScore => {
+  const updatedScores = { ...currentScores };
+  // Moods have a temporary but immediate impact
+  const MOOD_WEIGHT = 1.0;
+
+  switch (moodEntry.mood) {
+    case 'Happy':
+      updatedScores.extraversion = Math.min(100, updatedScores.extraversion + MOOD_WEIGHT);
+      updatedScores.neuroticism = Math.max(0, updatedScores.neuroticism - MOOD_WEIGHT);
+      break;
+    case 'Anxious':
+      updatedScores.neuroticism = Math.min(100, updatedScores.neuroticism + MOOD_WEIGHT);
+      break;
+    case 'Focused':
+      updatedScores.conscientiousness = Math.min(100, updatedScores.conscientiousness + MOOD_WEIGHT);
+      break;
+    case 'Calm':
+      updatedScores.neuroticism = Math.max(0, updatedScores.neuroticism - MOOD_WEIGHT);
+      break;
+    case 'Tired':
+      updatedScores.conscientiousness = Math.max(0, updatedScores.conscientiousness - MOOD_WEIGHT);
+      break;
+    case 'Sad':
+      updatedScores.neuroticism = Math.min(100, updatedScores.neuroticism + MOOD_WEIGHT);
+      updatedScores.extraversion = Math.max(0, updatedScores.extraversion - MOOD_WEIGHT);
+      break;
+  }
+
+  // Round to integers
+  (Object.keys(updatedScores) as Array<keyof OCEANScore>).forEach((key) => {
+    updatedScores[key] = Math.round(updatedScores[key]);
+  });
+
+  return updatedScores;
+};
 
 export const updateOCEANScoresFromMedia = (currentScores: OCEANScore, mediaItem: { intent?: string[], mood?: string[] }): OCEANScore => {
-    return updateScoresWithMedia(currentScores, [mediaItem]);
+  return updateScoresWithMedia(currentScores, [mediaItem]);
 }

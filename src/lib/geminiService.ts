@@ -27,17 +27,21 @@ export const GEMINI_INSIGHT_SCHEMA = {
       items: {
         type: 'object',
         properties: {
-            title: { type: 'string' },
-            description: { type: 'string' }
+          title: { type: 'string' },
+          description: { type: 'string' }
         }
       },
       description: '3 actionable suggestions for personal growth.',
     },
     confidence_score: {
-        type: 'integer',
-        description: 'Confidence level in this analysis (0-100) based on data quantity and consistency.',
+      type: 'integer',
+      description: 'Confidence level in this analysis (0-100) based on data quantity and consistency.',
+    },
+    narrative_summary: {
+      type: 'string',
+      description: 'A concise, running summary (max 3 sentences) of the user\'s evolving profile, updated with new data.',
     }
   },
-  required: ['taste_dna', 'narrative', 'updated_scores', 'growth_paths', 'confidence_score'],
+  required: ['taste_dna', 'narrative', 'updated_scores', 'growth_paths', 'confidence_score', 'narrative_summary'],
 };
 

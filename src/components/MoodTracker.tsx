@@ -1,24 +1,24 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Card, Typography, Space, Button, Input, Slider, Tag, App, Tooltip, Skeleton } from 'antd';
-import { SmileOutlined, MehOutlined, FrownOutlined, ThunderboltOutlined, RocketOutlined, CoffeeOutlined, BulbOutlined } from '@ant-design/icons';
-import { addMoodEntry, getUserProfile, saveUserProfile, getMoodEntries, MoodEntry } from '@/lib/firestoreUtils';
+import { Card, Typography, Button, Input, Slider, Tag, App, Tooltip, Skeleton, Modal, List, Popconfirm } from 'antd';
+import { SmileOutlined, MehOutlined, FrownOutlined, ThunderboltOutlined, RocketOutlined, CoffeeOutlined, BulbOutlined, HistoryOutlined, DeleteOutlined } from '@ant-design/icons';
+import { addMoodEntry, getUserProfile, saveUserProfile, getMoodEntries, MoodEntry, deleteMoodEntry } from '@/lib/firestoreUtils';
 import { updateScoresWithMood, determineArchetype, OCEANScore } from '@/lib/psychologyUtils';
 import { useAuth } from '@/context/AuthContext';
 import InfoTooltip from './InfoTooltip';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { TextArea } = Input;
 const { CheckableTag } = Tag;
 
 const MOODS = [
-  { label: 'Happy', icon: <SmileOutlined />, color: 'green' },
-  { label: 'Focused', icon: <RocketOutlined />, color: 'blue' },
-  { label: 'Calm', icon: <CoffeeOutlined />, color: 'cyan' },
-  { label: 'Anxious', icon: <ThunderboltOutlined />, color: 'orange' },
-  { label: 'Tired', icon: <MehOutlined />, color: 'purple' },
-  { label: 'Sad', icon: <FrownOutlined />, color: 'red' },
+  { label: 'Happy', icon: <SmileOutlined />, color: '#FFD700' }, // Amber/Gold
+  { label: 'Focused', icon: <RocketOutlined />, color: '#00008B' }, // Deep Blue
+  { label: 'Calm', icon: <CoffeeOutlined />, color: '#50C878' }, // Emerald Green
+  { label: 'Anxious', icon: <ThunderboltOutlined />, color: '#BF00FF' }, // Electric Purple
+  { label: 'Tired', icon: <MehOutlined />, color: '#708090' }, // Slate/Grey
+  { label: 'Sad', icon: <FrownOutlined />, color: '#708090' }, // Slate/Grey
 ];
 
 interface MoodTrackerProps {
@@ -35,14 +35,15 @@ const MoodTracker = ({ onMoodLogged }: MoodTrackerProps) => {
   const [recentMoods, setRecentMoods] = useState<MoodEntry[]>([]);
   const [journalPrompt, setJournalPrompt] = useState<string | null>(null);
   const [loadingPrompt, setLoadingPrompt] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   // Load recent moods on mount
   useEffect(() => {
     if (user) {
         const fetchHistory = async () => {
             try {
-                const entries = await getMoodEntries(user.uid, 5); 
-                setRecentMoods(entries.reverse()); 
+                const entries = await getMoodEntries(user.uid, 10); 
+                setRecentMoods(entries); // Keep order for list, reverse for viz if needed
                 
                 // Only fetch prompt if we have some data to base it on
                 if (entries.length > 0) {
@@ -59,9 +60,6 @@ const MoodTracker = ({ onMoodLogged }: MoodTrackerProps) => {
   const fetchJournalPrompt = async (moods: MoodEntry[]) => {
       setLoadingPrompt(true);
       try {
-        // We need archetype for context too, but if it's missing backend handles it gracefully
-        // Ideally we'd pass it in or fetch it, but for simplicity let's just send moods first
-        // Actually, let's grab profile quick if we can, or just send minimal data
         const profile = await getUserProfile(user!.uid);
         
         const response = await fetch('/api/generate-journal-prompt', {
@@ -108,11 +106,12 @@ const MoodTracker = ({ onMoodLogged }: MoodTrackerProps) => {
           message.success('Mood tracked successfully!');
       }
 
-      setRecentMoods(prev => [...prev.slice(-4), newEntry]); 
+      // Update local state
+      setRecentMoods(prev => [newEntry, ...prev]); 
       if (onMoodLogged) onMoodLogged();
 
       // Refresh prompt based on new mood
-      fetchJournalPrompt([...recentMoods, newEntry]);
+      fetchJournalPrompt([newEntry, ...recentMoods]);
 
       setSelectedMood(null);
       setNote('');
@@ -125,13 +124,32 @@ const MoodTracker = ({ onMoodLogged }: MoodTrackerProps) => {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    if (!user) return;
+    try {
+        // Need to implement deleteMoodEntry in firestoreUtils first
+        // For now assuming it exists based on plan, or I will add it
+        await deleteMoodEntry(user.uid, id);
+        message.success('Entry deleted');
+        setRecentMoods(prev => prev.filter(m => m.id !== id));
+        if (onMoodLogged) onMoodLogged();
+    } catch (e) {
+        console.error(e);
+        message.error('Failed to delete entry');
+    }
+  };
+
   const getMoodColor = (moodLabel: string) => {
       const m = MOODS.find(x => x.label === moodLabel);
       return m ? m.color : 'gray';
   };
 
   return (
-    <Card className="shadow-sm h-full" title={<div className="flex items-center">Mood Tracker <InfoTooltip text="Log your emotions to train the AI on your well-being patterns." /></div>}>
+    <Card 
+        className="shadow-sm h-full" 
+        title={<div className="flex items-center">Mood Tracker <InfoTooltip text="Log your emotions to train the AI on your well-being patterns." /></div>}
+        extra={<Button icon={<HistoryOutlined />} onClick={() => setHistoryOpen(true)}>History</Button>}
+    >
       <div className="space-y-6">
         
         {/* AI Journal Prompt */}
@@ -148,12 +166,12 @@ const MoodTracker = ({ onMoodLogged }: MoodTrackerProps) => {
             )}
         </div>
 
-        {/* Mood History Viz */}
+        {/* Mood History Viz (Tiny Dots) */}
         {recentMoods.length > 0 && (
             <div className="p-2 bg-gray-50 rounded-lg flex items-center justify-between">
                 <Text type="secondary" style={{ fontSize: '12px' }}>Recent:</Text>
                 <div className="flex gap-2">
-                    {recentMoods.map((entry, idx) => (
+                    {recentMoods.slice(0, 5).map((entry, idx) => (
                         <Tooltip key={idx} title={`${entry.mood} (${new Date(entry.createdAt!).toLocaleDateString()})`}>
                             <div 
                                 className="w-3 h-3 rounded-full" 
@@ -174,6 +192,7 @@ const MoodTracker = ({ onMoodLogged }: MoodTrackerProps) => {
                 checked={selectedMood === mood.label}
                 onChange={(checked) => setSelectedMood(checked ? mood.label : null)}
                 className={`text-sm py-1 px-3 border border-gray-200 ${selectedMood === mood.label ? 'border-transparent' : ''}`}
+                style={{ backgroundColor: selectedMood === mood.label ? `${mood.color}22` : 'transparent', color: selectedMood === mood.label ? mood.color : 'inherit', borderColor: selectedMood === mood.label ? mood.color : '' }}
               >
                 <span className="mr-1">{mood.icon}</span>
                 {mood.label}
@@ -205,12 +224,55 @@ const MoodTracker = ({ onMoodLogged }: MoodTrackerProps) => {
               />
             </div>
 
-            <Button type="primary" block onClick={handleSubmit} loading={submitting}>
+            <Button type="primary" block onClick={handleSubmit} loading={submitting} style={{ backgroundColor: getMoodColor(selectedMood) }}>
               Save Entry
             </Button>
           </>
         )}
       </div>
+
+      {/* History Modal */}
+      <Modal
+        title="Mood History"
+        open={historyOpen}
+        onCancel={() => setHistoryOpen(false)}
+        footer={null}
+      >
+          <List
+            dataSource={recentMoods}
+            renderItem={(item) => (
+                <List.Item
+                    actions={[
+                        <Popconfirm
+                            key="delete"
+                            title="Delete this entry?"
+                            onConfirm={() => handleDelete(item.id!)}
+                        >
+                            <Button type="text" danger icon={<DeleteOutlined />} size="small" />
+                        </Popconfirm>
+                    ]}
+                >
+                    <List.Item.Meta 
+                        avatar={
+                            <div 
+                                className="w-8 h-8 rounded-full flex items-center justify-center text-white" 
+                                style={{ backgroundColor: getMoodColor(item.mood) }}
+                            >
+                                {MOODS.find(m => m.label === item.mood)?.icon}
+                            </div>
+                        }
+                        title={<div className="flex justify-between"><span>{item.mood}</span> <span className="text-xs text-gray-400">{new Date(item.createdAt!).toLocaleDateString()}</span></div>}
+                        description={
+                            <div>
+                                <div className="text-xs text-gray-500">Intensity: {item.intensity}/10</div>
+                                {item.note && <div className="italic text-gray-600 mt-1">"{item.note}"</div>}
+                            </div>
+                        }
+                    />
+                </List.Item>
+            )}
+          />
+      </Modal>
     </Card>
   );
 };

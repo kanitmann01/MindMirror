@@ -14,6 +14,10 @@ import {
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import VantaBackground from './VantaBackground';
+import { getUserProfile, UserProfile } from '@/lib/firestoreUtils';
+import DataAvatar from '@/components/DataAvatar';
+
+import StreakCounter from './StreakCounter';
 
 const { Header, Sider, Content } = Layout;
 const { useBreakpoint } = Grid;
@@ -22,10 +26,11 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const { user, signInWithGoogle, logout } = useAuth();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const router = useRouter();
   const pathname = usePathname();
   const screens = useBreakpoint();
-  
+
   // Check if we are on a small screen
   const isMobile = !screens.lg;
 
@@ -33,6 +38,12 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
     // Close mobile drawer when path changes
     setMobileDrawerOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+      if (user) {
+          getUserProfile(user.uid).then(setProfile);
+      }
+  }, [user]);
 
   const items = [
     {
@@ -63,6 +74,11 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
 
   const userMenu = [
     {
+      key: '/profile',
+      label: 'Profile',
+      onClick: () => router.push('/profile'),
+    },
+    {
       key: 'logout',
       label: 'Logout',
       onClick: logout,
@@ -72,9 +88,9 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const SidebarContent = (
     <>
       <div className="demo-logo-vertical" style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Typography.Title level={4} style={{ margin: 0, color: '#6B7FD7' }}>
-            {collapsed && !isMobile ? 'BM' : 'BrainMirror'}
-          </Typography.Title>
+        <Typography.Title level={4} style={{ margin: 0, color: '#6B7FD7' }}>
+          {collapsed && !isMobile ? 'BM' : 'MindMirror'}
+        </Typography.Title>
       </div>
       <Menu
         theme="light"
@@ -104,14 +120,14 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
       {/* Mobile Drawer Sider */}
       {isMobile && (
         <Drawer
-            placement="left"
-            closable={false}
-            onClose={() => setMobileDrawerOpen(false)}
-            open={mobileDrawerOpen}
-            styles={{ body: { padding: 0 } }}
-            width={240}
+          placement="left"
+          closable={false}
+          onClose={() => setMobileDrawerOpen(false)}
+          open={mobileDrawerOpen}
+          styles={{ body: { padding: 0 } }}
+          width={240}
         >
-            {SidebarContent}
+          {SidebarContent}
         </Drawer>
       )}
 
@@ -127,13 +143,27 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
               height: 64,
             }}
           />
-          <div>
+          <div className="flex items-center gap-4">
+            {user && <StreakCounter />}
+
             {user ? (
               <Dropdown menu={{ items: userMenu }}>
-                 <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Avatar src={user.photoURL} icon={<UserOutlined />} />
-                    <span className="hidden sm:inline">{user.displayName}</span>
-                 </div>
+                <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div className="bg-black rounded-full p-1 overflow-hidden border border-gray-200" style={{ width: 32, height: 32 }}>
+                      <DataAvatar 
+                        archetypeId={profile?.archetype?.id}
+                        archetypeColor={profile?.archetype?.color || '#4ade80'}
+                        streak={0} 
+                        openness={profile?.oceanScore?.openness || 50}
+                        seed={profile?.avatarSeed || (user.uid ? user.uid.charCodeAt(0) : 12345)}
+                        theme={profile?.avatarTheme || 'neon'}
+                        shape={profile?.avatarShape || 'circle'}
+                        complexity={profile?.avatarComplexity || 'medium'}
+                        size={24} 
+                    />
+                  </div>
+                  <span className="hidden sm:inline">{user.displayName}</span>
+                </div>
               </Dropdown>
             ) : (
               <Button type="primary" onClick={signInWithGoogle}>Login</Button>

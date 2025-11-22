@@ -19,34 +19,34 @@ const geistMono = Geist_Mono({
 });
 
 export const viewport: Viewport = {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-    themeColor: '#6B7FD7',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: '#6B7FD7',
 };
 
 export const metadata: Metadata = {
-  title: "BrainMirror | Discover Your Psychological DNA",
+  title: "MindMirror | Discover Your Psychological DNA",
   description: "Visualize your mind's patterns, strengths, and blind spots through advanced psychological profiling and media analysis.",
   icons: {
     icon: '/favicon.ico',
     apple: '/apple-touch-icon.png',
   },
   openGraph: {
-      title: "BrainMirror | Discover Your Psychological DNA",
-      description: "Visualize your mind's patterns, strengths, and blind spots.",
-      url: 'https://brainmirror.app', // Placeholder
-      siteName: 'BrainMirror',
-      images: [
-          {
-              url: '/og-image.png', // Placeholder
-              width: 1200,
-              height: 630,
-          },
-      ],
-      locale: 'en_US',
-      type: 'website',
+    title: "MindMirror | Discover Your Psychological DNA",
+    description: "Visualize your mind's patterns, strengths, and blind spots.",
+    url: 'https://brainmirror.app', // Placeholder
+    siteName: 'MindMirror',
+    images: [
+      {
+        url: '/og-image.png', // Placeholder
+        width: 1200,
+        height: 630,
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
   },
 };
 
@@ -64,7 +64,7 @@ export default function RootLayout({
           <ConfigProvider theme={theme}>
             <App>
               <AuthProvider>
-        {children}
+                {children}
                 <CookieConsent />
               </AuthProvider>
             </App>

@@ -34,8 +34,8 @@ const CookieConsent = () => {
         <div className="flex-1 text-sm">
           <strong className="block text-lg mb-1">We value your privacy.</strong>
           <p className="text-gray-300">
-            BrainMirror uses essential cookies to ensure secure logins. 
-            We also use analytics to improve the AI experience, but only with your permission. 
+            MindMirror uses essential cookies to ensure secure logins.
+            We also use analytics to improve the AI experience, but only with your permission.
             See our <a href="/privacy" className="underline text-blue-400 hover:text-blue-300">Privacy Policy</a>.
           </p>
         </div>

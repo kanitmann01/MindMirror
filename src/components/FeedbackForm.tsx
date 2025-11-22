@@ -39,21 +39,21 @@ const FeedbackForm = () => {
 
   return (
     <Card title="Share Your Feedback" className="mt-8 shadow-sm">
-       <Form form={form} layout="vertical" onFinish={onFinish}>
-         <Form.Item name="rating" label="How would you rate BrainMirror?" initialValue={5}>
-            <Rate />
-         </Form.Item>
-         
-         <Form.Item name="message" label="Your Message" rules={[{ required: true, message: 'Please tell us your thoughts!' }]}>
-            <TextArea rows={4} placeholder="Feature requests, bugs, or just say hi..." />
-         </Form.Item>
+      <Form form={form} layout="vertical" onFinish={onFinish}>
+        <Form.Item name="rating" label="How would you rate MindMirror?" initialValue={5}>
+          <Rate />
+        </Form.Item>
 
-         <Form.Item>
-            <Button type="primary" htmlType="submit" icon={<SendOutlined />} loading={submitting}>
-               Send Feedback
-            </Button>
-         </Form.Item>
-       </Form>
+        <Form.Item name="message" label="Your Message" rules={[{ required: true, message: 'Please tell us your thoughts!' }]}>
+          <TextArea rows={4} placeholder="Feature requests, bugs, or just say hi..." />
+        </Form.Item>
+
+        <Form.Item>
+          <Button type="primary" htmlType="submit" icon={<SendOutlined />} loading={submitting}>
+            Send Feedback
+          </Button>
+        </Form.Item>
+      </Form>
     </Card>
   );
 };
