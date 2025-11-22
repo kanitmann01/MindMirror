@@ -37,7 +37,7 @@ const ImportContent = () => {
       // 1. Request YouTube Scopes via Firebase Auth
       const provider = new GoogleAuthProvider();
       provider.addScope('https://www.googleapis.com/auth/youtube.readonly');
-      
+
       const result = await signInWithPopup(auth, provider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
       const token = credential?.accessToken;
@@ -59,46 +59,77 @@ const ImportContent = () => {
       }
 
       const data = await response.json();
-      
+
       // 3. Process & Save to Firestore
       const newMediaItems: any[] = [];
-      for (const item of data.items) {
-        const title = item.snippet.title;
-        const description = item.snippet.description;
-        const { mood, intent } = analyzeMediaContent(title, description);
 
-        const mediaItem = {
-           title: title,
-           category: 'youtube' as const,
-           rating: 4, 
-           mood: mood, 
-           intent: intent,
-           tags: [], // Initialize with empty tags as required by MediaItem interface
-           userId: user.uid, // Explicitly set userId as required by MediaItem interface
-           createdAt: new Date().toISOString()
-        };
-        
-        await addMediaItem(user.uid, mediaItem);
-        newMediaItems.push(mediaItem);
+      // Limit to top 10 channels to avoid hitting API quotas too hard
+      const topChannels = data.items.slice(0, 10);
+
+      for (const item of topChannels) {
+        const channelId = item.snippet.resourceId.channelId;
+
+        // 3a. Get Channel Details to find "Uploads" playlist
+        const channelResponse = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!channelResponse.ok) continue;
+        const channelData = await channelResponse.json();
+        const uploadsPlaylistId = channelData.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+
+        if (uploadsPlaylistId) {
+          // 3b. Get Recent Videos from Uploads Playlist
+          const videosResponse = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylistId}&maxResults=3`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+
+          if (videosResponse.ok) {
+            const videosData = await videosResponse.json();
+
+            for (const video of videosData.items) {
+              const title = video.snippet.title;
+              const description = video.snippet.description;
+              const { mood, intent } = analyzeMediaContent(title, description);
+
+              // Skip generic/private videos
+              if (title === 'Private video' || title === 'Deleted video') continue;
+
+              const mediaItem = {
+                title: title,
+                category: 'youtube' as const,
+                rating: 4,
+                mood: mood,
+                intent: intent,
+                tags: [item.snippet.title], // Add channel name as tag
+                userId: user.uid,
+                createdAt: video.snippet.publishedAt || new Date().toISOString() // Use actual video date
+              };
+
+              await addMediaItem(user.uid, mediaItem);
+              newMediaItems.push(mediaItem);
+            }
+          }
+        }
       }
 
       // 4. UPDATE USER PERSONALITY PROFILE
       const profile = await getUserProfile(user.uid);
-      const updatedScores = profile?.oceanScore 
+      const updatedScores = profile?.oceanScore
         ? updateScoresWithMedia(profile.oceanScore, newMediaItems)
         : updateScoresWithMedia({ openness: 50, conscientiousness: 50, extraversion: 50, agreeableness: 50, neuroticism: 50 }, newMediaItems);
 
       const updatedArchetype = determineArchetype(updatedScores);
-      
+
       await saveUserProfile(user.uid, {
         oceanScore: updatedScores,
         archetype: updatedArchetype,
         youtubeImported: true, // Mark as imported
       });
-      
+
       message.success(`Imported ${newMediaItems.length} channels! Redirecting to dashboard...`);
       setIsImported(true);
-      
+
       setTimeout(() => {
         router.push('/dashboard');
       }, 1500);
@@ -112,31 +143,33 @@ const ImportContent = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto mt-8">
-      <Card title="Import Data Sources">
+    <div className="min-h-screen bg-white/90 p-6 backdrop-blur-sm">
+      <div className="max-w-2xl mx-auto mt-8">
+        <Card title="Import Data Sources" className="bg-white/80 backdrop-blur-md shadow-xl border border-white/50">
         <Paragraph>
-          Connect your external accounts to automatically populate your BrainMirror.
+          Connect your external accounts to automatically populate your MindMirror.
           <strong> Your personality profile will evolve based on your consumption patterns.</strong>
         </Paragraph>
-        
+
         <div className="flex flex-col gap-4">
-           <Button 
-             type={isImported ? 'default' : 'primary'}
-             danger={!isImported}
-             icon={isImported ? <CheckCircleOutlined /> : <YoutubeOutlined />} 
-             size="large" 
-             onClick={handleYouTubeImport}
-             loading={importing}
-             disabled={isImported}
-             className={isImported ? 'bg-gray-100 text-gray-400 border-gray-200' : ''}
-           >
-             {isImported ? 'YouTube Data Imported' : 'Import from YouTube'}
-           </Button>
-           <div className="text-xs text-gray-400 flex items-center gap-1">
-             <SafetyOutlined /> We only read your public subscriptions. No write access.
-           </div>
+          <Button
+            type={isImported ? 'default' : 'primary'}
+            danger={!isImported}
+            icon={isImported ? <CheckCircleOutlined /> : <YoutubeOutlined />}
+            size="large"
+            onClick={handleYouTubeImport}
+            loading={importing}
+            disabled={isImported}
+            className={isImported ? 'bg-gray-100 text-gray-400 border-gray-200' : ''}
+          >
+            {isImported ? 'YouTube Data Imported' : 'Import from YouTube'}
+          </Button>
+          <div className="text-xs text-gray-400 flex items-center gap-1">
+            <SafetyOutlined /> We only read your public subscriptions. No write access.
+          </div>
         </div>
       </Card>
+      </div>
     </div>
   );
 };
