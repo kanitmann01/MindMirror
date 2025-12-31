@@ -178,7 +178,7 @@ export const calculateOCEAN = (answers: Record<string, number>): OCEANScore => {
     extraversion: { mean: 50, variance: 500 },
     agreeableness: { mean: 50, variance: 500 },
     neuroticism: { mean: 50, variance: 500 }
-  };
+  } as any;
 
   const scores: OCEANScore = { 
     openness: 50, 
@@ -188,7 +188,7 @@ export const calculateOCEAN = (answers: Record<string, number>): OCEANScore => {
     neuroticism: 50 
   };
   
-  const counts: Record<keyof OCEANScore, number> = { openness: 0, conscientiousness: 0, extraversion: 0, agreeableness: 0, neuroticism: 0 };
+  const counts: Record<keyof OCEANScore, number> = { openness: 0, conscientiousness: 0, extraversion: 0, agreeableness: 0, neuroticism: 0 } as any;
 
   QUESTIONS.filter(q => q.category === 'ocean').forEach((q) => {
     const val = answers[q.id];
@@ -209,10 +209,14 @@ export const calculateOCEAN = (answers: Record<string, number>): OCEANScore => {
   });
 
   // Map distributions back to scalar scores for compatibility
-  (Object.keys(distributions) as Array<keyof OCEANScore>).forEach((key) => {
+  const traitKeys: Array<'openness' | 'conscientiousness' | 'extraversion' | 'agreeableness' | 'neuroticism'> = 
+    ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'];
+
+  traitKeys.forEach((key) => {
     // If we have actual data, use the updated mean, otherwise keep default 50
     if (counts[key] > 0) {
-        scores[key] = Math.round(distributions[key].mean);
+        const dists = distributions as unknown as Record<typeof key, TraitDistribution>;
+        scores[key] = Math.round(dists[key].mean);
     }
   });
 
@@ -440,16 +444,17 @@ export const updateScoresWithMedia = (
     const effectiveUncertainty = BASE_UNCERTAINTY / timeWeight; 
 
     // Helper to update a specific trait
-    const applyUpdate = (trait: keyof OCEANScore, direction: 'increase' | 'decrease') => {
+    const applyUpdate = (trait: 'openness' | 'conscientiousness' | 'extraversion' | 'agreeableness' | 'neuroticism', direction: 'increase' | 'decrease') => {
        if (!updatedScores.distributions) return;
        
-       const currentDist = updatedScores.distributions[trait];
+       const dists = updatedScores.distributions as unknown as Record<typeof trait, TraitDistribution>;
+       const currentDist = dists[trait];
        // If increasing, we "observe" a 100. If decreasing, we "observe" a 0.
        // But that's too strong. Let's observe a "nudge" relative to current, or a fixed high/low point.
        // Standard approach: observe 100 for positive trait evidence, 0 for negative.
        const observation = direction === 'increase' ? 100 : 0;
        
-       updatedScores.distributions[trait] = updateTrait(currentDist, observation, effectiveUncertainty);
+       dists[trait] = updateTrait(currentDist, observation, effectiveUncertainty);
     };
 
     if (item.intent) {
@@ -522,10 +527,14 @@ export const updateScoresWithMedia = (
   });
 
   // Sync scalar scores with new means
-  (Object.keys(updatedScores.distributions) as Array<keyof OCEANScore>).forEach((key) => {
+  const traits: Array<'openness' | 'conscientiousness' | 'extraversion' | 'agreeableness' | 'neuroticism'> = 
+    ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'];
+
+  traits.forEach((key) => {
     // Check if key is a valid trait (distributions has exact keys)
-    if (updatedScores.distributions && updatedScores.distributions[key as keyof typeof updatedScores.distributions]) {
-        updatedScores[key as keyof OCEANScore] = Math.round(updatedScores.distributions[key as keyof typeof updatedScores.distributions].mean);
+    const dists = updatedScores.distributions as unknown as Record<typeof key, TraitDistribution>;
+    if (dists && dists[key]) {
+        updatedScores[key] = Math.round(dists[key].mean);
     }
   });
 
@@ -554,11 +563,12 @@ export const updateScoresWithMood = (
   
   const MOOD_UNCERTAINTY = 300; // Moods are strong but fleeting indicators
 
-  const applyUpdate = (trait: keyof OCEANScore, direction: 'increase' | 'decrease') => {
+  const applyUpdate = (trait: 'openness' | 'conscientiousness' | 'extraversion' | 'agreeableness' | 'neuroticism', direction: 'increase' | 'decrease') => {
        if (!updatedScores.distributions) return;
-       const currentDist = updatedScores.distributions[trait];
+       const dists = updatedScores.distributions as unknown as Record<typeof trait, TraitDistribution>;
+       const currentDist = dists[trait];
        const observation = direction === 'increase' ? 100 : 0;
-       updatedScores.distributions[trait] = updateTrait(currentDist, observation, MOOD_UNCERTAINTY);
+       dists[trait] = updateTrait(currentDist, observation, MOOD_UNCERTAINTY);
   };
 
   switch (moodEntry.mood) {
@@ -584,12 +594,16 @@ export const updateScoresWithMood = (
       break;
   }
 
-  // Sync scalars
-  (Object.keys(updatedScores.distributions) as Array<keyof OCEANScore>).forEach((key) => {
-      if (updatedScores.distributions && updatedScores.distributions[key as keyof typeof updatedScores.distributions]) {
-          updatedScores[key as keyof OCEANScore] = Math.round(updatedScores.distributions[key as keyof typeof updatedScores.distributions].mean);
-      }
-   });
+  // Sync scalars explicitly to avoid type gymnastics
+  const traits: Array<'openness' | 'conscientiousness' | 'extraversion' | 'agreeableness' | 'neuroticism'> = ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'];
+  
+  traits.forEach((key) => {
+    // Check if key is a valid trait (distributions has exact keys)
+    const dists = updatedScores.distributions as unknown as Record<keyof OCEANScore, TraitDistribution>;
+    if (dists && dists[key]) {
+        updatedScores[key] = Math.round(dists[key].mean);
+    }
+ });
 
   return updatedScores;
 };
@@ -607,7 +621,7 @@ export interface BehavioralMetrics {
 }
 
 export interface BehavioralObservation {
-  trait: keyof OCEANScore;
+  trait: 'openness' | 'conscientiousness' | 'extraversion' | 'agreeableness' | 'neuroticism';
   observation: number; // 0-100
   uncertainty: number;
 }
@@ -677,10 +691,14 @@ export const updateScoresWithBehavior = (
     }
   });
 
-  // Sync scalars
-  (Object.keys(updatedScores.distributions) as Array<keyof OCEANScore>).forEach((key) => {
-    if (updatedScores.distributions && updatedScores.distributions[key as keyof typeof updatedScores.distributions]) {
-        updatedScores[key as keyof OCEANScore] = Math.round(updatedScores.distributions[key as keyof typeof updatedScores.distributions].mean);
+  // Sync scalars explicitly to avoid type gymnastics
+  const traits: Array<'openness' | 'conscientiousness' | 'extraversion' | 'agreeableness' | 'neuroticism'> = ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'];
+  
+  traits.forEach((key) => {
+    // Check if key is a valid trait (distributions has exact keys)
+    const dists = updatedScores.distributions as unknown as Record<keyof OCEANScore, TraitDistribution>;
+    if (dists && dists[key]) {
+        updatedScores[key] = Math.round(dists[key].mean);
     }
  });
 
@@ -801,10 +819,13 @@ export const updateScoresWithGameResult = (
     };
   }
 
-  const applyUpdate = (trait: keyof OCEANScore, observation: number, uncertainty: number) => {
-    if (updatedScores.distributions && updatedScores.distributions[trait]) {
-      const currentDist = updatedScores.distributions[trait];
-      updatedScores.distributions[trait] = updateTrait(currentDist, observation, uncertainty);
+  const applyUpdate = (trait: 'openness' | 'conscientiousness' | 'extraversion' | 'agreeableness' | 'neuroticism', observation: number, uncertainty: number) => {
+    if (updatedScores.distributions) {
+        const dists = updatedScores.distributions as unknown as Record<typeof trait, TraitDistribution>;
+        if (dists[trait]) {
+            const currentDist = dists[trait];
+            dists[trait] = updateTrait(currentDist, observation, uncertainty);
+        }
     }
   };
 
@@ -845,10 +866,14 @@ export const updateScoresWithGameResult = (
     }
   }
 
-  // Sync scalars
-  (Object.keys(updatedScores.distributions) as Array<keyof OCEANScore>).forEach((key) => {
-    if (updatedScores.distributions && updatedScores.distributions[key as keyof typeof updatedScores.distributions]) {
-        updatedScores[key as keyof OCEANScore] = Math.round(updatedScores.distributions[key as keyof typeof updatedScores.distributions].mean);
+  // Sync scalars explicitly to avoid type gymnastics
+  const traits: Array<'openness' | 'conscientiousness' | 'extraversion' | 'agreeableness' | 'neuroticism'> = ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'];
+  
+  traits.forEach((key) => {
+    // Check if key is a valid trait (distributions has exact keys)
+    const dists = updatedScores.distributions as unknown as Record<keyof OCEANScore, TraitDistribution>;
+    if (dists && dists[key]) {
+        updatedScores[key] = Math.round(dists[key].mean);
     }
  });
 
