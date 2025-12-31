@@ -1,21 +1,22 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Layout, Menu, Button, Avatar, Dropdown, Typography, Drawer, Grid } from 'antd';
+import { Layout, Menu, Button, Dropdown, Typography, Drawer, Grid } from 'antd';
 import {
   DashboardOutlined,
   PlusCircleOutlined,
   SettingOutlined,
-  UserOutlined,
   MenuUnfoldOutlined,
   MenuFoldOutlined,
-  CloudDownloadOutlined
+  CloudDownloadOutlined,
+  ExperimentOutlined
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import VantaBackground from './VantaBackground';
 import { getUserProfile, UserProfile } from '@/lib/firestoreUtils';
 import DataAvatar from '@/components/DataAvatar';
+import { useBehavioralTracker } from '@/hooks/useBehavioralTracker';
 
 import StreakCounter from './StreakCounter';
 
@@ -34,6 +35,9 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   // Check if we are on a small screen
   const isMobile = !screens.lg;
 
+  // Initialize Behavioral Tracker
+  useBehavioralTracker();
+
   useEffect(() => {
     // Close mobile drawer when path changes
     setMobileDrawerOpen(false);
@@ -50,6 +54,11 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
       key: '/dashboard',
       icon: <DashboardOutlined />,
       label: 'Dashboard',
+    },
+    {
+      key: '/brain-gym',
+      icon: <ExperimentOutlined />,
+      label: 'Brain Gym',
     },
     {
       key: '/add-media',

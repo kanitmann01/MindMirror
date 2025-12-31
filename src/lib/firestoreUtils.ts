@@ -1,6 +1,7 @@
 import { doc, getDoc, setDoc, collection, addDoc, getDocs, query, orderBy, limit, deleteDoc, where, runTransaction } from 'firebase/firestore';
 import { db } from './firebase';
 import { OCEANScore, MBTIResult, CognitiveStyle, Motivations, Archetype } from './psychologyUtils';
+import { GameResult } from '@/types/brainGym';
 
 /**
  * Calculates the new streak based on the last log date.
@@ -77,6 +78,8 @@ export interface MediaItem {
   tags: string[]; // User manually entered tags
   mood?: string[]; // Inferred or selected mood tags (e.g., 'uplifting', 'dark')
   intent?: string[]; // Inferred psychological intent (e.g., 'escapism', 'learning')
+  consumptionStyle?: 'deep_dive' | 'binge' | 'background'; // Digital Phenotyping
+  themes?: string[]; // Gemini extracted themes
   createdAt: string;
 }
 
@@ -94,6 +97,11 @@ export interface Feedback {
   message: string;
   type: string; // 'bug', 'feature', 'general'
   createdAt: string;
+}
+
+export interface BrainGymSession extends GameResult {
+  id?: string;
+  createdAt?: string; // should match timestamp from GameResult but explicit for sorting
 }
 
 /**
@@ -232,6 +240,39 @@ export const deleteMoodEntry = async (uid: string, moodId: string) => {
 };
 
 /**
+ * Saves a Brain Gym game result to the user's 'brainGymHistory' subcollection.
+ */
+export const saveGameResult = async (uid: string, result: GameResult) => {
+  try {
+    const historyRef = collection(db, 'users', uid, 'brainGymHistory');
+    const session: BrainGymSession = {
+      ...result,
+      createdAt: result.timestamp // Ensure sorting field exists
+    };
+    await addDoc(historyRef, session);
+  } catch (error) {
+    console.error("Error saving game result:", error);
+    throw error;
+  }
+};
+
+/**
+ * Retrieves Brain Gym history for a user.
+ */
+export const getGameHistory = async (uid: string, limitCount: number = 20): Promise<BrainGymSession[]> => {
+  try {
+    const historyRef = collection(db, 'users', uid, 'brainGymHistory');
+    const q = query(historyRef, orderBy('createdAt', 'desc'), limit(limitCount));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BrainGymSession));
+  } catch (error) {
+    console.error("Error getting game history:", error);
+    // Return empty array instead of throwing to prevent UI crashes if collection missing
+    return [];
+  }
+};
+
+/**
  * Deletes all user data (profile and subcollections).
  */
 export const deleteUserData = async (uid: string) => {
@@ -248,7 +289,13 @@ export const deleteUserData = async (uid: string) => {
     const moodsDeletePromises = moodsSnap.docs.map(doc => deleteDoc(doc.ref));
     await Promise.all(moodsDeletePromises);
 
-    // 3. Delete User Document
+    // 3. Delete Brain Gym History
+    const gymRef = collection(db, 'users', uid, 'brainGymHistory');
+    const gymSnap = await getDocs(gymRef);
+    const gymDeletePromises = gymSnap.docs.map(doc => deleteDoc(doc.ref));
+    await Promise.all(gymDeletePromises);
+
+    // 4. Delete User Document
     const userRef = doc(db, 'users', uid);
     await deleteDoc(userRef);
 

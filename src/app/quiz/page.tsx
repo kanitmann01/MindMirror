@@ -5,7 +5,7 @@ import { Card, Slider, Button, Typography, App, Spin } from 'antd';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { saveUserProfile, UserProfile } from '@/lib/firestoreUtils';
-import { calculateOCEAN, determineArchetype, OCEANScore } from '@/lib/psychologyUtils';
+import { determineArchetype, OCEANScore, updateTrait, TraitDistribution } from '@/lib/psychologyUtils';
 import { ArrowRightOutlined, ArrowLeftOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import QuizSelection from '@/components/QuizSelection';
 import VantaBackground from '@/components/VantaBackground';
@@ -142,36 +142,46 @@ const QuizPage = () => {
     setLoading(true);
 
     try {
-      // --- Phase 3: Scoring Logic ---
+      // --- Phase 3: Scoring Logic (Bayesian) ---
       
-      // Initialize counters
-      const traitSums: Record<string, number> = { openness: 0, conscientiousness: 0, extraversion: 0, agreeableness: 0, neuroticism: 0 };
-      const traitCounts: Record<string, number> = { openness: 0, conscientiousness: 0, extraversion: 0, agreeableness: 0, neuroticism: 0 };
+      // Initialize priors (Mean 50, High Variance)
+      // Using explicit type to avoid index signature issues
+      const distributions: {
+        openness: TraitDistribution;
+        conscientiousness: TraitDistribution;
+        extraversion: TraitDistribution;
+        agreeableness: TraitDistribution;
+        neuroticism: TraitDistribution;
+      } = {
+        openness: { mean: 50, variance: 500 },
+        conscientiousness: { mean: 50, variance: 500 },
+        extraversion: { mean: 50, variance: 500 },
+        agreeableness: { mean: 50, variance: 500 },
+        neuroticism: { mean: 50, variance: 500 }
+      };
 
-      // Aggregate Scores
+      // Aggregate Scores using Bayesian Updates
       questions.forEach(q => {
         const val = answers[q.id];
         if (val !== undefined) {
-          // Map 0-100 to score contribution
-          traitSums[q.trait] += val;
-          traitCounts[q.trait] += 1;
+          const traitKey = q.trait as keyof typeof distributions;
+          // val is 0-100 from slider
+          // Uncertainty 200 for a single quiz question
+          if (distributions[traitKey]) {
+            distributions[traitKey] = updateTrait(distributions[traitKey], val, 200);
+          }
         }
       });
 
-      // Calculate Averages
+      // Construct OCEANScore object
       const oceanScore: OCEANScore = {
-        openness: 0,
-        conscientiousness: 0,
-        extraversion: 0,
-        agreeableness: 0,
-        neuroticism: 0
+        openness: Math.round(distributions.openness.mean),
+        conscientiousness: Math.round(distributions.conscientiousness.mean),
+        extraversion: Math.round(distributions.extraversion.mean),
+        agreeableness: Math.round(distributions.agreeableness.mean),
+        neuroticism: Math.round(distributions.neuroticism.mean),
+        distributions: distributions
       };
-
-      (Object.keys(oceanScore) as Array<keyof OCEANScore>).forEach(trait => {
-        if (traitCounts[trait] > 0) {
-          oceanScore[trait] = Math.round(traitSums[trait] / traitCounts[trait]);
-        }
-      });
 
       // Determine Archetype
       const archetype = determineArchetype(oceanScore);

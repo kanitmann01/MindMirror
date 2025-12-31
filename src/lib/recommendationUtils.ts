@@ -1,11 +1,51 @@
 import { MediaItem } from './firestoreUtils';
-import { calculateTimeDecay } from './psychologyUtils';
+import { calculateTimeDecay, TraitDistribution } from './psychologyUtils';
 
 export interface Recommendation {
     item: MediaItem;
     score: number;
     reason: string;
 }
+
+export interface AdaptiveRecommendation {
+    type: 'strengthen' | 'remodel' | 'maintain';
+    activityId: string;
+    scientificReasoning: string;
+    trait: string;
+}
+
+/**
+ * Adaptive Intervention Engine based on Neural Plasticity research.
+ */
+export const getAdaptiveRecommendation = (trait: string, distribution: TraitDistribution): AdaptiveRecommendation => {
+    // High Variance (> 200): User is uncertain/unstable. Trigger 'Synaptic Strengthening' (LTP).
+    if (distribution.variance > 200) {
+        return {
+            type: 'strengthen',
+            activityId: 'Repeat your favorite meditation',
+            scientificReasoning: 'High variance indicates uncertainty. Synaptic Strengthening (LTP) through routine tasks consolidates neural pathways.',
+            trait
+        };
+    } 
+    // Low Variance (< 50): User is rigid. Trigger 'Dendritic Remodeling' (Structural Plasticity).
+    else if (distribution.variance < 50) {
+        return {
+            type: 'remodel',
+            activityId: 'Listen to a genre you hate',
+            scientificReasoning: 'Low variance indicates rigidity. Dendritic Remodeling requires novelty to stimulate structural plasticity.',
+            trait
+        };
+    }
+    // Balanced state
+    else {
+        return {
+            type: 'maintain',
+            activityId: 'Balance routine with minor variations',
+            scientificReasoning: 'Variance is optimal. Maintain current plasticity with balanced activities.',
+            trait
+        };
+    }
+};
 
 // Hardcoded Starter Packs for users with little history
 const STARTER_PACKS: Record<string, MediaItem[]> = {

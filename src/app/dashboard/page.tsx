@@ -1,16 +1,17 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { Typography, Card, Row, Col, Tag, Spin, Button, FloatButton, Grid, Modal, List, Popconfirm, App } from 'antd';
+import { Typography, Card, Row, Col, Tag, Spin, Button, FloatButton, Grid, Modal, List, Popconfirm, App, Statistic } from 'antd';
 import { useAuth } from '@/context/AuthContext';
-import { getUserProfile, getMediaItems, UserProfile, MediaItem, deleteMediaItem, getMoodEntries } from '@/lib/firestoreUtils';
+import { getUserProfile, getMediaItems, UserProfile, MediaItem, deleteMediaItem, getMoodEntries, getGameHistory, BrainGymSession } from '@/lib/firestoreUtils';
 import MindMap from '@/components/MindMap';
 import MoodPrescription from '@/components/MoodPrescription';
 import MoodTracker from '@/components/MoodTracker';
+import PlasticityGauge from '@/components/PlasticityGauge';
 import InsightsSection from '@/components/InsightsSection';
 import { transformToGraphData } from '@/lib/graphUtils';
 import { useRouter } from 'next/navigation';
-import { PlusOutlined, ThunderboltOutlined, SmileOutlined, UserOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, ThunderboltOutlined, SmileOutlined, UserOutlined, DeleteOutlined, ExperimentOutlined, RiseOutlined } from '@ant-design/icons';
 import InfoTooltip from '@/components/InfoTooltip';
 
 const { Title, Paragraph } = Typography;
@@ -21,6 +22,7 @@ export default function DashboardPage() {
   const { message } = App.useApp();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [media, setMedia] = useState<MediaItem[]>([]);
+  const [gameHistory, setGameHistory] = useState<BrainGymSession[]>([]);
   const [fetching, setFetching] = useState(true);
   const [isMediaModalOpen, setIsMediaModalOpen] = useState(false);
   const router = useRouter();
@@ -33,16 +35,18 @@ export default function DashboardPage() {
     if (!user) return;
     try {
       // We can optimize this to only fetch what changed, but for now fetching all ensures consistency
-      const [p, m, moods] = await Promise.all([
+      const [p, m, moods, games] = await Promise.all([
         getUserProfile(user.uid),
         getMediaItems(user.uid),
-        getMoodEntries(user.uid, 1)
+        getMoodEntries(user.uid, 1),
+        getGameHistory(user.uid, 5)
       ]);
       setProfile(p);
       setMedia(m);
       if (moods && moods.length > 0) {
         setLatestMood(moods[0].mood);
       }
+      setGameHistory(games);
     } catch (e) {
       console.error(e);
     }
@@ -134,7 +138,7 @@ export default function DashboardPage() {
               <Paragraph type="secondary" className="text-sm mb-4">{profile.archetype?.description}</Paragraph>
 
               <div className="mb-6 flex flex-wrap gap-2">
-                {profile.archetype?.traits.map(t => (
+                {profile.archetype?.traits?.map(t => (
                   <Tag key={t} color="blue">{t}</Tag>
                 ))}
               </div>
@@ -145,11 +149,13 @@ export default function DashboardPage() {
                   <Typography.Text strong className="text-xs uppercase text-gray-400">OCEAN Profile</Typography.Text>
                   <InfoTooltip text="Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism" />
                 </div>
-                {profile.oceanScore && Object.entries(profile.oceanScore).map(([k, v]) => (
+                {profile.oceanScore && Object.entries(profile.oceanScore)
+                  .filter(([k]) => k !== 'distributions')
+                  .map(([k, v]) => (
                   <div key={k}>
                     <div className="flex justify-between text-xs mb-1">
                       <span className="capitalize text-gray-600">{k}</span>
-                      <span className="font-bold text-gray-800">{v}%</span>
+                      <span className="font-bold text-gray-800">{v as number}%</span>
                     </div>
                     <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
                       <div className="h-full bg-indigo-400 rounded-full" style={{ width: `${v}%` }} />
@@ -157,6 +163,35 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
+            </Card>
+
+            {/* Plasticity Gauge */}
+            <PlasticityGauge variance={profile.oceanScore?.openness ? (profile.oceanScore.openness * 5) : 150} />
+
+            {/* Brain Gym Quick Stats */}
+            <Card size="small" title={<div className="flex items-center gap-2"><ExperimentOutlined /> Cognitive Training</div>}>
+                {gameHistory.length > 0 ? (
+                    <div className="flex justify-between items-center text-center">
+                        <div>
+                            <div className="text-xs text-gray-500">Sessions</div>
+                            <div className="text-xl font-bold">{gameHistory.length}</div>
+                        </div>
+                        <div>
+                            <div className="text-xs text-gray-500">Latest</div>
+                            <Tag color="purple" className="m-0">
+                                {gameHistory[0].gameId === 'dual-n-back' ? 'N-Back' : 'Stroop'}
+                            </Tag>
+                        </div>
+                        <Button type="link" size="small" icon={<RiseOutlined />} onClick={() => router.push('/brain-gym')}>
+                            Train
+                        </Button>
+                    </div>
+                ) : (
+                    <div className="text-center py-2">
+                        <Paragraph className="text-xs text-gray-400 mb-2">No training yet.</Paragraph>
+                        <Button size="small" type="dashed" onClick={() => router.push('/brain-gym')}>Start Brain Gym</Button>
+                    </div>
+                )}
             </Card>
 
             {/* Mood Tracker */}

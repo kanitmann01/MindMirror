@@ -8,6 +8,11 @@ import { Radar } from '@ant-design/charts';
 import { RobotOutlined, StarOutlined, QuestionCircleOutlined, BulbOutlined, CheckCircleOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import InfoTooltip from './InfoTooltip';
 import { useAuth } from '@/context/AuthContext';
+import MindMap from './MindMap';
+import MoodPrescription from './MoodPrescription';
+import NeuroInterventionCard from './NeuroInterventionCard';
+import { getAdaptiveRecommendation } from '@/lib/recommendationUtils';
+import { transformToGraphData } from '@/lib/graphUtils';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -24,6 +29,14 @@ const InsightsSection = ({ profile, media = [] }: InsightsSectionProps) => {
   const [methodologyVisible, setMethodologyVisible] = useState(false);
   const [isTextExpanded, setIsTextExpanded] = useState(false);
   const [updatingProfile, setUpdatingProfile] = useState(false);
+
+  // Calculate Graph Data for Dynamic Render
+  const graphData = React.useMemo(() => {
+    if (aiData?.uiTrigger === 'show-graph' && profile) {
+        return transformToGraphData(profile, media);
+    }
+    return { nodes: [], links: [] };
+  }, [aiData, profile, media]);
 
   // if (!profile.mbti && !profile.motivations) return null; // Removed to allow AI access
 
@@ -135,6 +148,25 @@ const InsightsSection = ({ profile, media = [] }: InsightsSectionProps) => {
     color: '#6B7FD7',
   };
 
+  // Calculate Adaptive Intervention
+  const intervention = React.useMemo(() => {
+    if (!profile.oceanScore?.distributions) return null;
+    
+    // Find the most significant intervention needed (prioritize Strengthen/Remodel over Maintain)
+    const entries = Object.entries(profile.oceanScore.distributions);
+    for (const [trait, dist] of entries) {
+        const rec = getAdaptiveRecommendation(trait, dist as any);
+        if (rec.type !== 'maintain') {
+            return rec;
+        }
+    }
+    // Fallback to first maintain if no critical ones
+    if (entries.length > 0) {
+        return getAdaptiveRecommendation(entries[0][0], entries[0][1] as any);
+    }
+    return null;
+  }, [profile.oceanScore]);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center flex-wrap gap-2">
@@ -155,6 +187,7 @@ const InsightsSection = ({ profile, media = [] }: InsightsSectionProps) => {
 
       {/* AI Insight Card - Dynamic */}
       {aiData ? (
+        <>
         <Card className="shadow-md border-l-4 border-l-purple-500 bg-gradient-to-r from-purple-50 to-transparent">
           <div className="space-y-4">
             <div className="flex items-center gap-2">
@@ -231,6 +264,20 @@ const InsightsSection = ({ profile, media = [] }: InsightsSectionProps) => {
             </div>
           </div>
         </Card>
+
+        {/* Dynamic AI Triggered Component */}
+        {aiData.uiTrigger === 'show-graph' && (
+            <div className="mt-6">
+                <div className="flex items-center gap-2 mb-2">
+                    <Title level={4} className="!m-0">Your Neural Map</Title>
+                    <InfoTooltip text="AI suggests viewing your connectivity graph based on your complex profile." />
+                </div>
+                <div className="rounded-xl overflow-hidden border border-slate-200 shadow-md">
+                    <MindMap data={graphData} readOnly={false} />
+                </div>
+            </div>
+        )}
+        </>
       ) : (
         /* Placeholder / Prompt Card */
         <Card className="bg-gray-50 border-dashed text-center py-6">
@@ -252,6 +299,54 @@ const InsightsSection = ({ profile, media = [] }: InsightsSectionProps) => {
       </div>
 
       <Row gutter={[16, 16]}>
+         {/* Neuro-Adaptive Intervention */}
+         {intervention && (
+            <Col xs={24}>
+                <NeuroInterventionCard 
+                    title={intervention.type === 'strengthen' ? 'Synaptic Strengthening' : intervention.type === 'remodel' ? 'Dendritic Remodeling' : 'Maintenance'}
+                    description={intervention.scientificReasoning}
+                    duration="15 min"
+                    traits={[intervention.trait]}
+                    difficulty="Medium"
+                    onStart={() => {}}
+                />
+            </Col>
+         )}
+
+         {/* OCEAN Confidence Visualization */}
+         {profile.oceanScore && profile.oceanScore.distributions && (
+          <Col xs={24}>
+            <Card title="Trait Confidence" className="shadow-sm">
+               <Row gutter={[24, 24]}>
+                 {Object.entries(profile.oceanScore.distributions).map(([trait, dist]: [string, any]) => {
+                   const confidencePercent = Math.round(Math.max(0, Math.min(100, (1 - (dist.variance / 500)) * 100)));
+                   const score = Math.round(dist.mean);
+                   
+                   let confColor = 'red';
+                   if (confidencePercent > 60) confColor = 'gold';
+                   if (confidencePercent > 80) confColor = 'green';
+
+                   return (
+                     <Col xs={24} sm={12} md={8} key={trait} className="mb-2">
+                       <div className="flex justify-between mb-1">
+                          <span className="capitalize font-medium">{trait}</span>
+                          <span className="text-gray-500">{score}%</span>
+                       </div>
+                       <Progress percent={score} showInfo={false} size="small" strokeColor="#8B5CF6" />
+                       
+                       <div className="flex items-center gap-2 mt-1">
+                          <Text type="secondary" className="text-xs">Confidence:</Text>
+                          <Progress percent={confidencePercent} steps={5} size="small" strokeColor={confColor} showInfo={false} className="w-20" />
+                          <span className="text-xs text-gray-400">{confidencePercent}%</span>
+                       </div>
+                     </Col>
+                   );
+                 })}
+               </Row>
+            </Card>
+          </Col>
+        )}
+
         {/* MBTI Section */}
         {profile.mbti && (
           <Col xs={24} md={12}>

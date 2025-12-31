@@ -1,4 +1,9 @@
-import { UserProfile } from './firestoreUtils';
+import { GameResult, DualNBackResult, StroopTestResult } from '../types/brainGym';
+
+export interface TraitDistribution {
+  mean: number; // 0-100
+  variance: number;
+}
 
 export interface OCEANScore {
   openness: number;
@@ -6,6 +11,13 @@ export interface OCEANScore {
   extraversion: number;
   agreeableness: number;
   neuroticism: number;
+  distributions?: {
+    openness: TraitDistribution;
+    conscientiousness: TraitDistribution;
+    extraversion: TraitDistribution;
+    agreeableness: TraitDistribution;
+    neuroticism: TraitDistribution;
+  };
 }
 
 export interface MBTIResult {
@@ -139,25 +151,73 @@ export const QUESTIONS: Question[] = [
 ];
 
 /**
- * Calculates the Big Five (OCEAN) scores from questionnaire answers.
+ * Updates a trait distribution using Bayesian inference with a Gaussian prior and observation.
+ * @param prior The current belief about the trait (mean and variance).
+ * @param observation The new data point (0-100 scale).
+ * @param uncertainty The variance/uncertainty of the observation (e.g., 200).
+ */
+export const updateTrait = (prior: TraitDistribution, observation: number, uncertainty: number): TraitDistribution => {
+  const newVariance = 1 / (1 / prior.variance + 1 / uncertainty);
+  const newMean = newVariance * (prior.mean / prior.variance + observation / uncertainty);
+  
+  return {
+    mean: Math.max(0, Math.min(100, newMean)), // Clamp between 0 and 100
+    variance: newVariance
+  };
+};
+
+/**
+ * Calculates the Big Five (OCEAN) scores from questionnaire answers using Bayesian inference.
  */
 export const calculateOCEAN = (answers: Record<string, number>): OCEANScore => {
-  const scores: OCEANScore = { openness: 0, conscientiousness: 0, extraversion: 0, agreeableness: 0, neuroticism: 0 };
+  // Initialize priors with high uncertainty (uninformed prior)
+  // Mean 50 (neutral), Variance 500 (broad spread)
+  const distributions: Record<keyof OCEANScore, TraitDistribution> = {
+    openness: { mean: 50, variance: 500 },
+    conscientiousness: { mean: 50, variance: 500 },
+    extraversion: { mean: 50, variance: 500 },
+    agreeableness: { mean: 50, variance: 500 },
+    neuroticism: { mean: 50, variance: 500 }
+  };
+
+  const scores: OCEANScore = { 
+    openness: 50, 
+    conscientiousness: 50, 
+    extraversion: 50, 
+    agreeableness: 50, 
+    neuroticism: 50 
+  };
+  
   const counts: Record<keyof OCEANScore, number> = { openness: 0, conscientiousness: 0, extraversion: 0, agreeableness: 0, neuroticism: 0 };
 
   QUESTIONS.filter(q => q.category === 'ocean').forEach((q) => {
     const val = answers[q.id];
     if (val !== undefined) {
-      let score = val;
+      let score = val; // 1-5 scale usually
       if (q.reverse) score = 6 - val;
-      scores[q.trait as keyof OCEANScore] += score;
-      counts[q.trait as keyof OCEANScore] += 1;
+      
+      // Convert 1-5 scale to 0-100 observation
+      const observation = (score - 1) * 25; 
+      
+      const traitKey = q.trait as keyof OCEANScore;
+      
+      // Update distribution
+      // Uncertainty 200 reflects moderate confidence in a single quiz answer
+      distributions[traitKey] = updateTrait(distributions[traitKey], observation, 200);
+      counts[traitKey] += 1;
     }
   });
 
-  (Object.keys(scores) as Array<keyof OCEANScore>).forEach((key) => {
-    if (counts[key] > 0) scores[key] = Math.round((scores[key] / counts[key]) * 20);
+  // Map distributions back to scalar scores for compatibility
+  (Object.keys(distributions) as Array<keyof OCEANScore>).forEach((key) => {
+    // If we have actual data, use the updated mean, otherwise keep default 50
+    if (counts[key] > 0) {
+        scores[key] = Math.round(distributions[key].mean);
+    }
   });
+
+  // Attach the full distributions to the result
+  scores.distributions = distributions as any;
 
   return scores;
 };
@@ -340,72 +400,133 @@ export const calculateTimeDecay = (dateLogged?: Date | string | null): number =>
 };
 
 /**
- * Update OCEAN scores based on new media items.
+ * Update OCEAN scores based on new media items using Bayesian Inference.
  * This creates a "living profile" that evolves with consumption habits.
  */
 export const updateScoresWithMedia = (
   currentScores: OCEANScore,
-  mediaItems: Array<{ intent?: string[]; mood?: string[]; category?: string; createdAt?: string | Date }>
+  mediaItems: Array<{ 
+    intent?: string[]; 
+    mood?: string[]; 
+    category?: string; 
+    createdAt?: string | Date;
+    consumptionStyle?: 'deep_dive' | 'binge' | 'background';
+  }>
 ): OCEANScore => {
   const updatedScores = { ...currentScores };
+  
+  // Ensure distributions exist; if not, create them from scalar scores with default variance
+  if (!updatedScores.distributions) {
+    updatedScores.distributions = {
+        openness: { mean: updatedScores.openness, variance: 500 },
+        conscientiousness: { mean: updatedScores.conscientiousness, variance: 500 },
+        extraversion: { mean: updatedScores.extraversion, variance: 500 },
+        agreeableness: { mean: updatedScores.agreeableness, variance: 500 },
+        neuroticism: { mean: updatedScores.neuroticism, variance: 500 },
+    };
+  }
 
-  // Base Weight: How much influence does 1 media item have?
-  const BASE_WEIGHT = 0.5;
+  const BASE_OBSERVATION_STRENGTH = 10; // How much a media item "observes" a trait shift
+  const BASE_UNCERTAINTY = 400; // Fairly high uncertainty for a single media item
 
   mediaItems.forEach(item => {
     // Calculate time decay weight (handles missing dates internally)
     const timeWeight = calculateTimeDecay(item.createdAt);
-    const effectiveWeight = BASE_WEIGHT * timeWeight;
+    // Effective uncertainty decreases as item is fresher? Or observation is stronger?
+    // Let's model it as: observation strength is scaled by timeWeight. 
+    // Actually, Bayesian update is about observation value and variance. 
+    // Let's say older items have HIGHER uncertainty.
+    
+    const effectiveUncertainty = BASE_UNCERTAINTY / timeWeight; 
+
+    // Helper to update a specific trait
+    const applyUpdate = (trait: keyof OCEANScore, direction: 'increase' | 'decrease') => {
+       if (!updatedScores.distributions) return;
+       
+       const currentDist = updatedScores.distributions[trait];
+       // If increasing, we "observe" a 100. If decreasing, we "observe" a 0.
+       // But that's too strong. Let's observe a "nudge" relative to current, or a fixed high/low point.
+       // Standard approach: observe 100 for positive trait evidence, 0 for negative.
+       const observation = direction === 'increase' ? 100 : 0;
+       
+       updatedScores.distributions[trait] = updateTrait(currentDist, observation, effectiveUncertainty);
+    };
 
     if (item.intent) {
       item.intent.forEach(intent => {
         switch (intent) {
           case 'learning':
-            updatedScores.openness = Math.min(100, updatedScores.openness + effectiveWeight);
+            applyUpdate('openness', 'increase');
             break;
           case 'social':
-            updatedScores.extraversion = Math.min(100, updatedScores.extraversion + effectiveWeight);
+            applyUpdate('extraversion', 'increase');
             break;
           case 'challenge':
-            updatedScores.conscientiousness = Math.min(100, updatedScores.conscientiousness + effectiveWeight);
+            applyUpdate('conscientiousness', 'increase');
             break;
           case 'escapism':
-            updatedScores.neuroticism = Math.min(100, updatedScores.neuroticism + effectiveWeight * 0.5);
+            applyUpdate('neuroticism', 'increase'); // Escapism correlates with N
             break;
           case 'inspiration':
-            updatedScores.openness = Math.min(100, updatedScores.openness + effectiveWeight);
-            updatedScores.agreeableness = Math.min(100, updatedScores.agreeableness + effectiveWeight * 0.5);
+            applyUpdate('openness', 'increase');
+            applyUpdate('agreeableness', 'increase');
             break;
         }
       });
+    }
+
+    if (item.consumptionStyle) {
+      switch (item.consumptionStyle) {
+        case 'deep_dive':
+          // Active Learning -> High Conscientiousness, High Openness
+          applyUpdate('conscientiousness', 'increase');
+          applyUpdate('openness', 'increase');
+          break;
+        case 'binge':
+          // Passive Consumption -> Low Conscientiousness, potentially High Neuroticism (escapism)
+          applyUpdate('conscientiousness', 'decrease');
+          applyUpdate('neuroticism', 'increase');
+          break;
+        case 'background':
+          // Multitasking -> Low Conscientiousness
+          applyUpdate('conscientiousness', 'decrease');
+          // Maybe Extraversion increase?
+          applyUpdate('extraversion', 'increase');
+          break;
+      }
     }
     if (item.mood) {
       item.mood.forEach(mood => {
         switch (mood) {
           case 'uplifting':
-            updatedScores.extraversion = Math.min(100, updatedScores.extraversion + effectiveWeight);
+            applyUpdate('extraversion', 'increase');
             break;
           case 'relaxing':
-            updatedScores.neuroticism = Math.max(0, updatedScores.neuroticism - effectiveWeight);
+            applyUpdate('neuroticism', 'decrease');
             break;
           case 'thought-provoking':
-            updatedScores.openness = Math.min(100, updatedScores.openness + effectiveWeight);
+            applyUpdate('openness', 'increase');
             break;
           case 'intense':
-            updatedScores.extraversion = Math.min(100, updatedScores.extraversion + effectiveWeight * 0.5);
+            // Mixed signal?
+            applyUpdate('extraversion', 'increase');
             break;
           case 'emotional':
-            updatedScores.neuroticism = Math.min(100, updatedScores.neuroticism + effectiveWeight * 0.5);
-            updatedScores.agreeableness = Math.min(100, updatedScores.agreeableness + effectiveWeight * 0.5);
+             // High agreeableness, potentially high neuroticism
+            applyUpdate('agreeableness', 'increase');
+            applyUpdate('neuroticism', 'increase');
             break;
         }
       });
     }
   });
 
-  // Round to integers for cleaner display
-  (Object.keys(updatedScores) as Array<keyof OCEANScore>).forEach((key) => {
-    updatedScores[key] = Math.round(updatedScores[key]);
+  // Sync scalar scores with new means
+  (Object.keys(updatedScores.distributions) as Array<keyof OCEANScore>).forEach((key) => {
+    // Check if key is a valid trait (distributions has exact keys)
+    if (updatedScores.distributions && updatedScores.distributions[key as keyof typeof updatedScores.distributions]) {
+        updatedScores[key as keyof OCEANScore] = Math.round(updatedScores.distributions[key as keyof typeof updatedScores.distributions].mean);
+    }
   });
 
   return updatedScores;
@@ -419,36 +540,56 @@ export const updateScoresWithMood = (
   moodEntry: { mood: string, intensity: number }
 ): OCEANScore => {
   const updatedScores = { ...currentScores };
-  // Moods have a temporary but immediate impact
-  const MOOD_WEIGHT = 1.0;
+  
+  // Ensure distributions exist
+  if (!updatedScores.distributions) {
+    updatedScores.distributions = {
+        openness: { mean: updatedScores.openness, variance: 500 },
+        conscientiousness: { mean: updatedScores.conscientiousness, variance: 500 },
+        extraversion: { mean: updatedScores.extraversion, variance: 500 },
+        agreeableness: { mean: updatedScores.agreeableness, variance: 500 },
+        neuroticism: { mean: updatedScores.neuroticism, variance: 500 },
+    };
+  }
+  
+  const MOOD_UNCERTAINTY = 300; // Moods are strong but fleeting indicators
+
+  const applyUpdate = (trait: keyof OCEANScore, direction: 'increase' | 'decrease') => {
+       if (!updatedScores.distributions) return;
+       const currentDist = updatedScores.distributions[trait];
+       const observation = direction === 'increase' ? 100 : 0;
+       updatedScores.distributions[trait] = updateTrait(currentDist, observation, MOOD_UNCERTAINTY);
+  };
 
   switch (moodEntry.mood) {
     case 'Happy':
-      updatedScores.extraversion = Math.min(100, updatedScores.extraversion + MOOD_WEIGHT);
-      updatedScores.neuroticism = Math.max(0, updatedScores.neuroticism - MOOD_WEIGHT);
+      applyUpdate('extraversion', 'increase');
+      applyUpdate('neuroticism', 'decrease');
       break;
     case 'Anxious':
-      updatedScores.neuroticism = Math.min(100, updatedScores.neuroticism + MOOD_WEIGHT);
+      applyUpdate('neuroticism', 'increase');
       break;
     case 'Focused':
-      updatedScores.conscientiousness = Math.min(100, updatedScores.conscientiousness + MOOD_WEIGHT);
+      applyUpdate('conscientiousness', 'increase');
       break;
     case 'Calm':
-      updatedScores.neuroticism = Math.max(0, updatedScores.neuroticism - MOOD_WEIGHT);
+      applyUpdate('neuroticism', 'decrease');
       break;
     case 'Tired':
-      updatedScores.conscientiousness = Math.max(0, updatedScores.conscientiousness - MOOD_WEIGHT);
+      applyUpdate('conscientiousness', 'decrease');
       break;
     case 'Sad':
-      updatedScores.neuroticism = Math.min(100, updatedScores.neuroticism + MOOD_WEIGHT);
-      updatedScores.extraversion = Math.max(0, updatedScores.extraversion - MOOD_WEIGHT);
+      applyUpdate('neuroticism', 'increase');
+      applyUpdate('extraversion', 'decrease');
       break;
   }
 
-  // Round to integers
-  (Object.keys(updatedScores) as Array<keyof OCEANScore>).forEach((key) => {
-    updatedScores[key] = Math.round(updatedScores[key]);
-  });
+  // Sync scalars
+  (Object.keys(updatedScores.distributions) as Array<keyof OCEANScore>).forEach((key) => {
+      if (updatedScores.distributions && updatedScores.distributions[key as keyof typeof updatedScores.distributions]) {
+          updatedScores[key as keyof OCEANScore] = Math.round(updatedScores.distributions[key as keyof typeof updatedScores.distributions].mean);
+      }
+   });
 
   return updatedScores;
 };
@@ -456,3 +597,260 @@ export const updateScoresWithMood = (
 export const updateOCEANScoresFromMedia = (currentScores: OCEANScore, mediaItem: { intent?: string[], mood?: string[] }): OCEANScore => {
   return updateScoresWithMedia(currentScores, [mediaItem]);
 }
+
+// --- Digital Phenotyping ---
+
+export interface BehavioralMetrics {
+  avgScrollSpeed: number; // pixels per second
+  avgClickHesitation: number; // ms pause before click
+  uniqueRoutesVisited: number; // count
+}
+
+export interface BehavioralObservation {
+  trait: keyof OCEANScore;
+  observation: number; // 0-100
+  uncertainty: number;
+}
+
+/**
+ * Maps raw behavioral metrics to trait observations with uncertainty.
+ */
+export const mapBehaviorToTraitUpdate = (metrics: BehavioralMetrics): BehavioralObservation[] => {
+  const observations: BehavioralObservation[] = [];
+
+  // 1. Scroll Speed (Impulsivity vs Calm)
+  // Very fast scrolling may indicate skimming (Low Conscientiousness) or Anxiety (High Neuroticism)
+  if (metrics.avgScrollSpeed > 1500) {
+     // Fast scrolling
+     observations.push({ trait: 'conscientiousness', observation: 30, uncertainty: 400 });
+     observations.push({ trait: 'neuroticism', observation: 70, uncertainty: 450 });
+  } else if (metrics.avgScrollSpeed < 300 && metrics.avgScrollSpeed > 0) {
+     // Slow, deliberate reading?
+     observations.push({ trait: 'conscientiousness', observation: 70, uncertainty: 400 });
+  }
+
+  // 2. Click Hesitation (Deliberation)
+  // Long pause before clicking implies thinking/deliberating (High Conscientiousness)
+  if (metrics.avgClickHesitation > 800) {
+    observations.push({ trait: 'conscientiousness', observation: 80, uncertainty: 300 });
+  } else if (metrics.avgClickHesitation < 200) {
+    // Impulse clicking
+    observations.push({ trait: 'conscientiousness', observation: 20, uncertainty: 350 });
+  }
+
+  // 3. Feature Exploration (Openness)
+  // Visiting many different pages implies curiosity
+  if (metrics.uniqueRoutesVisited >= 5) {
+     observations.push({ trait: 'openness', observation: 85, uncertainty: 350 });
+  } else if (metrics.uniqueRoutesVisited <= 2) {
+     // Low exploration (could just be focused, so high uncertainty)
+     observations.push({ trait: 'openness', observation: 40, uncertainty: 600 });
+  }
+
+  return observations;
+};
+
+/**
+ * Updates OCEAN scores based on behavioral observations.
+ */
+export const updateScoresWithBehavior = (
+  currentScores: OCEANScore,
+  observations: BehavioralObservation[]
+): OCEANScore => {
+  const updatedScores = { ...currentScores };
+
+  // Ensure distributions exist
+  if (!updatedScores.distributions) {
+    updatedScores.distributions = {
+        openness: { mean: updatedScores.openness, variance: 500 },
+        conscientiousness: { mean: updatedScores.conscientiousness, variance: 500 },
+        extraversion: { mean: updatedScores.extraversion, variance: 500 },
+        agreeableness: { mean: updatedScores.agreeableness, variance: 500 },
+        neuroticism: { mean: updatedScores.neuroticism, variance: 500 },
+    };
+  }
+
+  observations.forEach(obs => {
+    if (updatedScores.distributions && updatedScores.distributions[obs.trait]) {
+      const currentDist = updatedScores.distributions[obs.trait];
+      updatedScores.distributions[obs.trait] = updateTrait(currentDist, obs.observation, obs.uncertainty);
+    }
+  });
+
+  // Sync scalars
+  (Object.keys(updatedScores.distributions) as Array<keyof OCEANScore>).forEach((key) => {
+    if (updatedScores.distributions && updatedScores.distributions[key as keyof typeof updatedScores.distributions]) {
+        updatedScores[key as keyof OCEANScore] = Math.round(updatedScores.distributions[key as keyof typeof updatedScores.distributions].mean);
+    }
+ });
+
+  return updatedScores;
+};
+
+
+// --- Neuroplasticity & Recommendation Engine ---
+
+export interface NeuroplasticityPlan {
+  type: 'consolidation' | 'remodeling' | 'maintenance';
+  reasoning: string;
+  focusTrait: string;
+  mediaQuery: {
+    category?: string;
+    tags?: string[];
+    intent?: string[];
+    minRating?: number;
+  };
+}
+
+/**
+ * Suggests an adaptive plasticity plan based on trait variance.
+ * High Variance (>300) -> Unstable -> Consolidation (LTP)
+ * Low Variance (<100) -> Rigid -> Remodeling (Dendritic Growth)
+ */
+export const suggestNeuroplasticityPath = (traitProfile: OCEANScore): NeuroplasticityPlan => {
+  // If no distributions, return default maintenance
+  if (!traitProfile.distributions) {
+    return {
+      type: 'maintenance',
+      reasoning: 'Profile is not yet calibrated enough for deep plasticity analysis.',
+      focusTrait: 'general',
+      mediaQuery: { intent: ['learning', 'inspiration'] }
+    };
+  }
+
+  let selectedPlan: NeuroplasticityPlan | null = null;
+  let maxVariance = -1;
+  let minVariance = 9999;
+
+  // Iterate to find extremes
+  const entries = Object.entries(traitProfile.distributions);
+  
+  // 1. Check for High Variance (Unstable) - Priority
+  for (const [trait, dist] of entries) {
+    if (dist.variance > 300) {
+      if (dist.variance > maxVariance) {
+        maxVariance = dist.variance;
+        // Construct Consolidation Plan
+        selectedPlan = {
+          type: 'consolidation',
+          focusTrait: trait,
+          reasoning: `Your ${trait} levels are fluctuating (high variance). Synaptic consolidation is required to stabilize this trait. We recommend repeating a familiar, positive habit to trigger Long-Term Potentiation (LTP).`,
+          mediaQuery: {
+            // Suggest comforting/familiar content or specific stabilizing intents
+            intent: ['inspiration', 'relaxing'], // General stabilizers
+            tags: [trait, 'comfort'],
+            minRating: 4 // Only high quality stuff
+          }
+        };
+      }
+    }
+  }
+
+  if (selectedPlan) return selectedPlan;
+
+  // 2. Check for Low Variance (Rigid) - Secondary Priority
+  for (const [trait, dist] of entries) {
+    if (dist.variance < 100) {
+      if (dist.variance < minVariance) {
+        minVariance = dist.variance;
+        // Construct Remodeling Plan
+        selectedPlan = {
+          type: 'remodeling',
+          focusTrait: trait,
+          reasoning: `Your ${trait} levels are very rigid (low variance). To foster growth, we need to trigger dendritic branching through novelty injection. A 'Cognitive Flexibility' task is recommended.`,
+          mediaQuery: {
+             // Suggest novel/challenging content
+             intent: ['learning', 'challenge', 'thought-provoking'],
+             category: 'documentary' // Example of expanding horizons
+          }
+        };
+      }
+    }
+  }
+
+  if (selectedPlan) return selectedPlan;
+
+  // 3. Default / Maintenance
+  return {
+    type: 'maintenance',
+    focusTrait: 'balanced',
+    reasoning: 'Your personality profile is currently balanced. Continue exploring diverse content to maintain healthy synaptic plasticity.',
+    mediaQuery: {
+      intent: ['inspiration', 'social']
+    }
+  };
+};
+
+/**
+ * Updates OCEAN scores based on Brain Gym game results.
+ */
+export const updateScoresWithGameResult = (
+  currentScores: OCEANScore,
+  result: GameResult
+): OCEANScore => {
+  const updatedScores = { ...currentScores };
+
+  // Ensure distributions exist
+  if (!updatedScores.distributions) {
+    updatedScores.distributions = {
+        openness: { mean: updatedScores.openness, variance: 500 },
+        conscientiousness: { mean: updatedScores.conscientiousness, variance: 500 },
+        extraversion: { mean: updatedScores.extraversion, variance: 500 },
+        agreeableness: { mean: updatedScores.agreeableness, variance: 500 },
+        neuroticism: { mean: updatedScores.neuroticism, variance: 500 },
+    };
+  }
+
+  const applyUpdate = (trait: keyof OCEANScore, observation: number, uncertainty: number) => {
+    if (updatedScores.distributions && updatedScores.distributions[trait]) {
+      const currentDist = updatedScores.distributions[trait];
+      updatedScores.distributions[trait] = updateTrait(currentDist, observation, uncertainty);
+    }
+  };
+
+  if (result.gameId === 'dual-n-back') {
+    const dnbResult = result as DualNBackResult;
+    // High nLevel = High Conscientiousness
+    // nLevel 1 is baseline. nLevel 2 is good. nLevel 3+ is excellent.
+    // Observation: 85 (high C), Uncertainty: 10 (very confident if high level reached)
+    
+    let obs = 60;
+    let unc = 100;
+
+    if (dnbResult.nLevel >= 3) {
+      obs = 90;
+      unc = 20;
+    } else if (dnbResult.nLevel === 2) {
+      obs = 75;
+      unc = 50;
+    }
+
+    applyUpdate('conscientiousness', obs, unc);
+
+  } else if (result.gameId === 'stroop-test') {
+    const stroopResult = result as StroopTestResult;
+    // High Error Rate = Low Inhibition (High Impulsivity/Neuroticism)
+    // Low Error Rate (< 5%) = High Conscientiousness / Low Neuroticism
+    // Slow Reaction Time (> 1.5s) = Low Processing Speed (maybe correlated with low Openness/C?)
+
+    // 1. Error Rate Impact on Neuroticism/Conscientiousness
+    if (stroopResult.errorRate > 10) {
+        // > 10% errors -> High Neuroticism (anxiety/impulsivity)
+        applyUpdate('neuroticism', 80, 100);
+        applyUpdate('conscientiousness', 30, 150);
+    } else if (stroopResult.errorRate < 5) {
+        // < 5% errors -> Low Neuroticism, High Conscientiousness
+        applyUpdate('neuroticism', 30, 100);
+        applyUpdate('conscientiousness', 80, 100);
+    }
+  }
+
+  // Sync scalars
+  (Object.keys(updatedScores.distributions) as Array<keyof OCEANScore>).forEach((key) => {
+    if (updatedScores.distributions && updatedScores.distributions[key as keyof typeof updatedScores.distributions]) {
+        updatedScores[key as keyof OCEANScore] = Math.round(updatedScores.distributions[key as keyof typeof updatedScores.distributions].mean);
+    }
+ });
+
+  return updatedScores;
+};

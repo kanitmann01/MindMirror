@@ -1,33 +1,113 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Form, Input, Select, Rate, Button, Card, Typography, App } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Form, Select, Rate, Button, Card, Typography, App, AutoComplete, Radio, Tag, Space, Spin, message } from 'antd';
 import { useAuth } from '@/context/AuthContext';
 import { addMediaItem, MediaItem, getUserProfile, saveUserProfile } from '@/lib/firestoreUtils';
-import { updateScoresWithMedia, determineArchetype, MOOD_CONSTANTS } from '@/lib/psychologyUtils';
+import { updateScoresWithMedia, determineArchetype } from '@/lib/psychologyUtils';
 import { checkSignificantShift } from '@/lib/gamificationUtils';
 import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 const { Option } = Select;
 
-interface AddMediaContentProps {
-  // Define any props if necessary
+// --- Mock Search Service (Replace with Real API) ---
+interface SearchResult {
+  value: string;
+  label: string;
+  category: string;
+  cover: string;
 }
 
-const AddMediaContent: React.FC<AddMediaContentProps> = () => {
+const MOCK_DB: SearchResult[] = [
+  { value: 'Dune', label: 'Dune (Book)', category: 'book', cover: 'https://upload.wikimedia.org/wikipedia/en/d/de/Dune-Frank_Herbert_%281965%29_First_Edition.jpg' },
+  { value: 'Inception', label: 'Inception (Movie)', category: 'movie', cover: 'https://upload.wikimedia.org/wikipedia/en/2/2e/Inception_%282010%29_theatrical_poster.jpg' },
+  { value: 'The Dark Side of the Moon', label: 'The Dark Side of the Moon (Album)', category: 'spotify', cover: 'https://upload.wikimedia.org/wikipedia/en/3/3b/Dark_Side_of_the_Moon.png' },
+  { value: 'Elden Ring', label: 'Elden Ring (Game)', category: 'game', cover: 'https://upload.wikimedia.org/wikipedia/en/b/b9/Elden_Ring_Box_art.jpg' },
+  { value: 'Atomic Habits', label: 'Atomic Habits (Book)', category: 'book', cover: 'https://m.media-amazon.com/images/I/91bYsX41DVL.jpg' },
+  { value: 'Spirited Away', label: 'Spirited Away (Anime)', category: 'anime', cover: 'https://upload.wikimedia.org/wikipedia/en/d/db/Spirited_Away_Japanese_poster.png' },
+];
+
+const AddMediaContent: React.FC = () => {
   const [form] = Form.useForm();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [options, setOptions] = useState<{ value: string; label: string }[]>([]);
+  const [selectedItem, setSelectedItem] = useState<SearchResult | null>(null);
+  const [extractedThemes, setExtractedThemes] = useState<string[]>([]);
+  const [analyzing, setAnalyzing] = useState(false);
+  
   const { message } = App.useApp();
   const router = useRouter();
+  const searchTimeout = React.useRef<NodeJS.Timeout | null>(null);
 
-  const onFinish = async (values: Omit<MediaItem, 'id' | 'createdAt'>) => {
+  // Debounced Search Handler
+  const handleSearch = (value: string) => {
+    if (searchTimeout.current) {
+      clearTimeout(searchTimeout.current);
+    }
+
+    if (!value) {
+      setOptions([]);
+      return;
+    }
+    // Simulate API delay
+    searchTimeout.current = setTimeout(() => {
+      const results = MOCK_DB.filter(item => item.value.toLowerCase().includes(value.toLowerCase()));
+      setOptions(results.length > 0 ? results : [{ value, label: value }]); // Allow custom input
+    }, 300);
+  };
+
+  const handleSelect = async (value: string) => {
+    const item = MOCK_DB.find(i => i.value === value);
+    if (item) {
+      setSelectedItem(item);
+      form.setFieldsValue({ category: item.category, title: item.value });
+      
+      // Trigger Gemini Analysis
+      analyzeThemes(item.value, item.category);
+    } else {
+      // Custom item
+      setSelectedItem({ value, label: value, category: 'book', cover: 'https://placehold.co/400x600?text=No+Cover' }); // Default cover
+      analyzeThemes(value, 'media');
+    }
+  };
+
+  const analyzeThemes = async (title: string, category: string) => {
+    setAnalyzing(true);
+    try {
+      const response = await fetch('/api/extract-themes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, category }),
+      });
+      const data = await response.json();
+      if (data.themes) {
+        setExtractedThemes(data.themes);
+        message.success(`AI Identified Themes: ${data.themes.join(', ')}`);
+      }
+    } catch (error) {
+      console.error("Theme extraction failed:", error);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const onFinish = async (values: any) => {
     if (!user) return;
     setLoading(true);
     try {
-      const mediaItem = {
-        ...values,
+      const mediaItem: MediaItem = {
+        userId: user.uid,
+        title: values.title,
+        category: values.category,
+        rating: values.rating,
+        intent: values.intent,
+        mood: values.mood,
+        consumptionStyle: values.consumptionStyle,
+        themes: extractedThemes,
+        tags: [],
         createdAt: new Date().toISOString(),
       };
 
@@ -60,6 +140,8 @@ const AddMediaContent: React.FC<AddMediaContentProps> = () => {
       }
 
       form.resetFields();
+      setSelectedItem(null);
+      setExtractedThemes([]);
     } catch (error) {
       console.error(error);
       message.error('Failed to add media.');
@@ -69,111 +151,174 @@ const AddMediaContent: React.FC<AddMediaContentProps> = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <Card>
-        <Title level={2} className="text-center mb-6">Add to Your Collection</Title>
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={onFinish}
-          initialValues={{
-            rating: 3,
-            category: 'book'
-          }}
-        >
-          <Form.Item
-            name="title"
-            label="Title"
-            rules={[{ required: true, message: 'Please enter the title' }]}
-          >
-            <Input placeholder="e.g., Dune, Spirited Away, Minecraft..." />
-          </Form.Item>
+    <div className="max-w-4xl mx-auto p-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        
+        {/* Left Column: Cover Art & AI Insights */}
+        <div className="md:col-span-1 space-y-4">
+          <AnimatePresence mode="wait">
+            {selectedItem ? (
+              <motion.div
+                key="cover"
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.5 }}
+                className="rounded-lg overflow-hidden shadow-xl"
+              >
+                 {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img 
+                  src={selectedItem.cover} 
+                  alt={selectedItem.value} 
+                  className="w-full h-auto object-cover"
+                />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="placeholder"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="w-full h-96 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300"
+              >
+                <Text type="secondary">Select media to see preview</Text>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          <Form.Item
-            name="category"
-            label="Category"
-            rules={[{ required: true }]}
-          >
-            <Select>
-              <Option value="book">Book</Option>
-              <Option value="anime">Anime</Option>
-              <Option value="movie">Movie</Option>
-              <Option value="game">Game</Option>
-              <Option value="youtube">YouTube Channel/Video</Option>
-              <Option value="spotify">Spotify Artist/Album</Option>
-            </Select>
-          </Form.Item>
+          {/* AI Themes Display */}
+          <Card size="small" title="🔮 AI Analysis" className="shadow-sm">
+             {analyzing ? (
+               <div className="flex justify-center p-4"><Spin /></div>
+             ) : extractedThemes.length > 0 ? (
+               <div className="flex flex-wrap gap-2">
+                 {extractedThemes.map(theme => (
+                   <Tag color="purple" key={theme}>{theme}</Tag>
+                 ))}
+               </div>
+             ) : (
+               <Text type="secondary" className="text-xs">Select media to generate psychological themes...</Text>
+             )}
+          </Card>
+        </div>
 
-          <Form.Item
-            name="rating"
-            label="Psychological Intensity"
-            help={
-              <div className="text-xs text-gray-500 mt-1">
-                {(() => {
-                  const val = form.getFieldValue('rating');
-                  if (!val) return "How much did this affect you emotionally?";
-                  if (val <= 2) return "Light / Passive Entertainment";
-                  if (val <= 4) return "Engaging / Thought Provoking";
-                  return "Deeply Transformative / Life Changing";
-                })()}
-              </div>
-            }
-          >
-            <Rate allowHalf onChange={() => { /* Force re-render for help text update */ }} />
-          </Form.Item>
-
-          <Form.Item
-            name="mood"
-            label="Mood / Vibe"
-            rules={[{ required: true, message: 'Please select the primary mood' }]}
-          >
-            <Select mode="tags" placeholder="Select or type moods">
-                {/* Standardized Moods */}
-                <Option value="Happy">Happy ☀️</Option>
-                <Option value="Focused">Focused 🎯</Option>
-                <Option value="Calm">Calm 🍃</Option>
-                <Option value="Anxious">Anxious ⚡</Option>
-                <Option value="Tired">Tired 🥱</Option>
-                <Option value="Sad">Sad 🌧️</Option>
-                
-                {/* Legacy / Extra Options mapped to nearby concepts if possible, or just extra */}
-                <Option value="intense">Intense 🔥</Option>
-                <Option value="emotional">Emotional 💖</Option>
-                <Option value="dark">Dark 🌑</Option>
-                <Option value="uplifting">Uplifting 🚀</Option>
-                <Option value="funny">Funny 😂</Option>
-                <Option value="thought-provoking">Thought-provoking 🧠</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            name="intent"
-            label="Why do you consume this?"
-            rules={[{ required: true }]}
-          >
-            <Select mode="multiple" placeholder="Select reasons">
-              <Option value="escapism">Escapism / Comfort</Option>
-              <Option value="learning">Learning / Growth</Option>
-              <Option value="social">Social Connection</Option>
-              <Option value="challenge">Challenge / Mastery</Option>
-              <Option value="inspiration">Inspiration</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item>
-            <Button 
-              type="primary" 
-              htmlType="submit" 
-              loading={loading} 
-              block 
-              size="large"
-              className="bg-gradient-to-r from-indigo-600 to-violet-600 border-none hover:from-indigo-500 hover:to-violet-500"
+        {/* Right Column: Input Form */}
+        <div className="md:col-span-2">
+          <Card className="shadow-md">
+            <Title level={2} className="mb-6">Log Consumption</Title>
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={onFinish}
+              initialValues={{
+                rating: 3,
+                category: 'book',
+                consumptionStyle: 'deep_dive'
+              }}
             >
-              Save Entry
-            </Button>
-          </Form.Item>
-        </Form>
-      </Card>
+              <Form.Item
+                name="title"
+                label="Search Media"
+                rules={[{ required: true, message: 'Please select a title' }]}
+              >
+                <AutoComplete
+                  options={options}
+                  onSearch={handleSearch}
+                  onSelect={handleSelect}
+                  placeholder="Search for Book, Movie, Song..."
+                  size="large"
+                />
+              </Form.Item>
+
+              <Form.Item
+                name="category"
+                label="Category"
+                rules={[{ required: true }]}
+              >
+                <Select>
+                  <Option value="book">Book</Option>
+                  <Option value="anime">Anime</Option>
+                  <Option value="movie">Movie</Option>
+                  <Option value="game">Game</Option>
+                  <Option value="youtube">YouTube</Option>
+                  <Option value="spotify">Spotify</Option>
+                </Select>
+              </Form.Item>
+
+              {/* Digital Phenotyping Section */}
+              <div className="bg-gray-50 p-4 rounded-lg mb-6 border border-gray-100">
+                <Text strong className="block mb-3">🧠 Consumption Style (Digital Phenotyping)</Text>
+                <Form.Item
+                  name="consumptionStyle"
+                  noStyle
+                  rules={[{ required: true }]}
+                >
+                  <Radio.Group buttonStyle="solid" className="w-full flex">
+                    <Radio.Button value="deep_dive" className="flex-1 text-center">
+                      Deep Dive <span className="block text-xs text-gray-400">Active Learning</span>
+                    </Radio.Button>
+                    <Radio.Button value="binge" className="flex-1 text-center">
+                      Binge <span className="block text-xs text-gray-400">Passive Flow</span>
+                    </Radio.Button>
+                    <Radio.Button value="background" className="flex-1 text-center">
+                      Background <span className="block text-xs text-gray-400">Multitasking</span>
+                    </Radio.Button>
+                  </Radio.Group>
+                </Form.Item>
+              </div>
+
+              <Form.Item
+                name="rating"
+                label="Psychological Intensity"
+              >
+                <Rate allowHalf />
+              </Form.Item>
+
+              <Form.Item
+                name="mood"
+                label="Mood / Vibe"
+                rules={[{ required: true, message: 'Please select mood' }]}
+              >
+                <Select mode="tags" placeholder="Select moods">
+                    <Option value="Happy">Happy ☀️</Option>
+                    <Option value="Focused">Focused 🎯</Option>
+                    <Option value="Calm">Calm 🍃</Option>
+                    <Option value="Anxious">Anxious ⚡</Option>
+                    <Option value="Sad">Sad 🌧️</Option>
+                    <Option value="intense">Intense 🔥</Option>
+                    <Option value="thought-provoking">Thought-provoking 🧠</Option>
+                </Select>
+              </Form.Item>
+
+              <Form.Item
+                name="intent"
+                label="Intent"
+                rules={[{ required: true }]}
+              >
+                <Select mode="multiple" placeholder="Why did you consume this?">
+                  <Option value="escapism">Escapism</Option>
+                  <Option value="learning">Learning</Option>
+                  <Option value="social">Social</Option>
+                  <Option value="challenge">Challenge</Option>
+                  <Option value="inspiration">Inspiration</Option>
+                </Select>
+              </Form.Item>
+
+              <Form.Item>
+                <Button 
+                  type="primary" 
+                  htmlType="submit" 
+                  loading={loading} 
+                  block 
+                  size="large"
+                  className="bg-gradient-to-r from-indigo-600 to-violet-600 border-none hover:from-indigo-500 hover:to-violet-500 h-12 text-lg"
+                >
+                  Save to Mind Map
+                </Button>
+              </Form.Item>
+            </Form>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 };
